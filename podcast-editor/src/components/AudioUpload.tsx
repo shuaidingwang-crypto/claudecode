@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { loadAudioFile, cleanAudio, detectSegments, createSegments } from '../utils/audioProcessing';
 import { processSegmentTranscripts } from '../utils/transcription';
-import { AudioSegment } from '../types';
+import type { AudioSegment } from '../types';
 
 interface AudioUploadProps {
   onSegmentsReady: (segments: AudioSegment[]) => void;
@@ -34,8 +34,7 @@ export const AudioUpload: React.FC<AudioUploadProps> = ({ onSegmentsReady }) => 
       setProgress(`Found ${boundaries.length - 1} potential segments. Creating segments...`);
 
       // Create segments
-      const blob = new Blob([file], { type: file.type });
-      const segments = await createSegments(cleanedBuffer, boundaries, blob);
+      const segments = await createSegments(cleanedBuffer, boundaries);
       setProgress(`Processing ${segments.length} segments (transcribing and summarizing)...`);
 
       // Process transcripts and summaries

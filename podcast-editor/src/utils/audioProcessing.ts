@@ -1,4 +1,4 @@
-import { AudioSegment } from '../types';
+import type { AudioSegment } from '../types';
 
 // Load audio file and decode it
 export async function loadAudioFile(file: File): Promise<AudioBuffer> {
@@ -10,7 +10,6 @@ export async function loadAudioFile(file: File): Promise<AudioBuffer> {
 
 // Apply noise reduction and normalization (basic cleaning)
 export async function cleanAudio(audioBuffer: AudioBuffer): Promise<{ buffer: AudioBuffer; blob: Blob }> {
-  const audioContext = new AudioContext();
 
   // Create an offline context for processing
   const offlineContext = new OfflineAudioContext(
@@ -91,8 +90,7 @@ export function detectSegments(audioBuffer: AudioBuffer, silenceThreshold = 0.01
 // Create audio segments from boundaries
 export async function createSegments(
   audioBuffer: AudioBuffer,
-  boundaries: number[],
-  originalBlob: Blob
+  boundaries: number[]
 ): Promise<Omit<AudioSegment, 'transcript' | 'summary'>[]> {
   const segments: Omit<AudioSegment, 'transcript' | 'summary'>[] = [];
 
@@ -153,7 +151,6 @@ async function extractSegmentBuffer(
 // Convert AudioBuffer to Blob
 export async function audioBufferToBlob(audioBuffer: AudioBuffer): Promise<Blob> {
   const numberOfChannels = audioBuffer.numberOfChannels;
-  const length = audioBuffer.length;
   const sampleRate = audioBuffer.sampleRate;
 
   // Create WAV file

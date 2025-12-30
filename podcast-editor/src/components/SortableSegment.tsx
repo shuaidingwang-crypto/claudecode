@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SegmentCard } from './SegmentCard';
-import { AudioSegment } from '../types';
+import type { AudioSegment } from '../types';
 
 interface SortableSegmentProps {
   segment: AudioSegment;

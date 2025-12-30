@@ -1,4 +1,4 @@
-import { AudioSegment } from '../types';
+import type { AudioSegment } from '../types';
 
 // Transcribe audio using Web Speech API (Chrome/Edge only)
 // In production, you'd want to use a more robust service like OpenAI Whisper
@@ -54,7 +54,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 }
 
 // Mock transcription for demonstration (when Web Speech API is not available or for testing)
-export async function mockTranscribeAudio(audioBlob: Blob, segmentIndex: number): Promise<string> {
+export async function mockTranscribeAudio(_audioBlob: Blob, segmentIndex: number): Promise<string> {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
 

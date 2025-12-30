@@ -6,7 +6,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
+  type DragEndEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableSegment } from './SortableSegment';
-import { AudioSegment } from '../types';
+import type { AudioSegment } from '../types';
 import { combineSegments } from '../utils/audioProcessing';
 
 interface TimelineEditorProps {

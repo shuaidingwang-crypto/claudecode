@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AudioUpload } from './components/AudioUpload';
 import { TimelineEditor } from './components/TimelineEditor';
-import { AudioSegment } from './types';
+import type { AudioSegment } from './types';
 import './App.css';
 
 function App() {

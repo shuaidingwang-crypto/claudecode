@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import WaveSurfer from 'wavesurfer.js';
-import { AudioSegment } from '../types';
+import type { AudioSegment } from '../types';
 
 interface SegmentCardProps {
   segment: AudioSegment;
