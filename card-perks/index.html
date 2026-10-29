@@ -189,6 +189,7 @@ const DEFAULT_CONFIG = {
   discoverQ: {},                       // overrides { "2026Q4": [...] }
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
+  last4: { mar: "", ihg: "", fr: "" },  // Chase card last 4 digits, for CSV matching
   vals: { DIS: 1.0, UR: 1.0, HH: 0.45, AA: 1.5, IHG: 0.5, MAR: 0.7 }, // cents/point, user assumptions
   anniv: { aa: 0, mar: 0, hh: 0, ihg: 0 },                   // card-open month 1-12, 0 = unset
   freedomQ: {},                        // overrides { "2026Q4": [...] }
@@ -572,7 +573,6 @@ function perkRow(b) {
 // ---------------------------------------------------------------------------
 // View: 账单复盘
 // ---------------------------------------------------------------------------
-let LAST = null; // current analysis (unsaved)
 const KEYWORDS = [
   ["payment", /payment|autopay|thank you|自动还款|还款/i], ["refund", /refund|credit adj|return/i],
   ["hotel_hilton", /hilton|conrad|waldorf|hampton|doubletree|embassy suites|curio|canopy|tapestry|home2/i],
@@ -592,44 +592,105 @@ const KEYWORDS = [
   ["entertainment", /ticketmaster|stubhub|amc|regal|cinemark|fandango|seatgeek|disneyland|universal studios|live nation|axs/i],
   ["dining", /restaurant|cafe|coffee|starbucks|doordash|uber eats|grubhub|pizza|sushi|ramen|bar |grill|kitchen|bakery|tea|boba|mcdonald|chipotle|tst\*|sq \*/i],
 ];
-function localParse(text, defCard) {
-  const out = [];
+// Statement import ---------------------------------------------------------
+function parseCSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.map((r) => r.map((x) => x.trim())).filter((r) => r.some((x) => x));
+}
+function normDate(s) {
+  s = String(s || "").trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) { const y = m[3].length === 2 ? "20" + m[3] : m[3]; return `${y}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`; }
+  return "";
+}
+const money = (x) => { const v = parseFloat(String(x || "").replace(/[$,\s]/g, "").replace(/^\((.*)\)$/, "-$1")); return isFinite(v) ? v : 0; };
+// Returns { txns: [{date, desc, amount (+ = charge)}], header, hint }
+function parseStatement(text) {
+  const rows = parseCSV(text);
+  const hi = rows.slice(0, 10).findIndex((r) => r.some((c) => /date/i.test(c)) && r.some((c) => /amount|debit|credit/i.test(c)));
+  if (hi >= 0) {
+    const H = rows[hi].map((c) => c.toLowerCase());
+    const col = (re) => H.findIndex((c) => re.test(c));
+    const iDate = [col(/^trans(action)?\.? date/), col(/^date$/), col(/date/)].find((i) => i >= 0);
+    const iDesc = col(/description|merchant|payee/);
+    const iAmt = col(/^amount/), iDeb = col(/debit/), iCred = col(/credit/), iCard = col(/card|account/);
+    let txns = rows.slice(hi + 1).map((r) => ({
+      date: normDate(r[iDate]), desc: (r[iDesc] || "").replace(/\s+/g, " ").slice(0, 90),
+      amount: iAmt >= 0 ? money(r[iAmt]) : money(r[iDeb]) - money(r[iCred]), hint: iCard >= 0 ? r[iCard] : "",
+    })).filter((t) => t.date && t.amount);
+    // Issuers disagree on sign; purchases are the majority, so make them positive.
+    if (iAmt >= 0 && txns.filter((t) => t.amount < 0).length > txns.filter((t) => t.amount > 0).length) txns.forEach((t) => { t.amount = -t.amount; });
+    return { txns, header: rows[hi].join(","), hint: txns.find((t) => t.hint)?.hint || "" };
+  }
+  const txns = [];
   for (const line of text.split(/\r?\n/)) {
     const amts = [...line.matchAll(/-?\$?\s?\d{1,3}(?:,\d{3})*\.\d{2}/g)];
     if (!amts.length) continue;
     const raw = amts[amts.length - 1][0];
-    const amt = parseFloat(raw.replace(/[$,\s]/g, ""));
     const date = (line.match(/\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{4}-\d{2}-\d{2})\b/) || [])[1] || "";
-    const merchant = line.replace(raw, "").replace(date, "").replace(/[",]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
-    let cat = "other";
-    for (const [c, re] of KEYWORDS) if (re.test(line)) { cat = c; break; }
-    out.push({ date, merchant, amount: amt, category: cat, foreign: false, card: defCard, flag: null, note: "" });
+    txns.push({ date: normDate(date.length <= 5 ? `${date}/${NOW.getFullYear()}` : date), desc: line.replace(raw, "").replace(date, "").replace(/[",]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 90), amount: money(raw) });
   }
-  return out;
+  return { txns, header: "", hint: "" };
+}
+function guessCard(name, header, hint) {
+  const s = `${name} ${hint}`;
+  for (const [k, l4] of Object.entries(CFG.last4 || {})) if (l4 && s.includes(l4)) return k;
+  if (/amex|american express/i.test(s) || /card member/i.test(header)) return "hh";
+  if (/citi/i.test(s) || /^status,date,description,debit,credit/i.test(header)) return "aa";
+  if (/discover|dfs/i.test(s) || /trans\. date/i.test(header)) return "dis";
+  return "";
+}
+function inferMonth(txns) {
+  const c = {}; for (const t of txns) if (t.date) c[t.date.slice(0, 7)] = (c[t.date.slice(0, 7)] || 0) + 1;
+  return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+}
+const CREDIT_IDS = ["hh_resort", "hh_flight", "hh_clear", "ihg_fb", "mar_air"];
+function localCredit(desc, card) {
+  if (!/credit/i.test(desc)) return null;
+  if (/resort/i.test(desc)) return "hh_resort";
+  if (/clear/i.test(desc)) return "hh_clear";
+  if (/airline|flight|air travel/i.test(desc)) return card === "mar" ? "mar_air" : card === "hh" ? "hh_flight" : null;
+  if (card === "ihg" && /food|dining|beverage|f&b/i.test(desc)) return "ihg_fb";
+  return null;
+}
+function localClassify(t, card) {
+  let cat = "other";
+  for (const [c, re] of KEYWORDS) if (re.test(t.desc)) { cat = c; break; }
+  if (t.amount < 0) cat = /payment|autopay|thank you/i.test(t.desc) ? "payment" : "refund";
+  return { date: t.date, merchant: t.desc, amount: t.amount, category: cat, foreign: /foreign|fx|intl/i.test(t.desc), card, flag: null, note: "", creditFor: t.amount < 0 ? localCredit(t.desc, card) : null };
 }
 const CAT_ENUM = CATS.map((c) => c[0]).filter((c) => c !== "foreign").concat(["payment", "refund"]);
-function claudePrompt(text, defCard, month) {
-  return `You are categorizing credit card statement transactions for a US cardholder. Statement month: ${month}.
-Default card if a line doesn't say otherwise: ${defCard} (card ids: dis=Discover it, fr=Chase Freedom Unlimited, hh=Hilton Aspire Amex, aa=Citi AAdvantage Platinum Select, ihg=Chase IHG Premier, mar=Chase Marriott Boundless).
+function claudePrompt(txns, card, month) {
+  const lines = txns.map((t, i) => `${i}|${t.date}|${t.desc}|${t.amount.toFixed(2)}`).join("\n");
+  return `You are categorizing transactions from one US credit card statement (card: ${CARDS[card].name}, month ${month}).
+Each line is index|date|description|amount. Amount sign is already normalized: positive = charge, negative = payment, refund or statement credit.
 
-For EVERY purchase line, output an object:
-{"date":"YYYY-MM-DD or as given","merchant":"short clean merchant name","amount":number (positive = charge, negative = credit/refund),"category":one of ${JSON.stringify(CAT_ENUM)},"foreign":true if charged in a foreign currency or foreign merchant,"card":card id,"flag":null or one of "fee"(annual/late/foreign fee),"interest","subscription"(recurring service),"duplicate"(same merchant+amount repeated suspiciously),"unusual"(looks out of pattern or possibly fraudulent),"note":"<=12 words, Chinese, only when flag is set"}
-Category guidance: food delivery apps = dining; Walmart/Target/Costco = other (not grocery); movies/concerts/sports tickets/theme parks = entertainment (streaming stays streaming); electric/gas/water/internet/phone bills = utilities; flights booked on OTAs (Expedia etc.) = hotel_other; airline names = flight_aa (American Airlines only) or flight_other; statement payments = payment; annual fees = other with flag "fee".
+For EVERY line output {"i":index,"merchant":"short clean merchant name","category":one of ${JSON.stringify(CAT_ENUM)},"foreign":bool (foreign currency or foreign merchant),"flag":null or "fee"|"interest"|"subscription"|"duplicate"|"unusual","note":"<=12 Chinese words, only when flag is set","creditFor":null or a benefit id}
+Category guidance: food delivery = dining; Walmart/Target/Costco = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
+creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "ihg_fb" (IHG food & beverage credit), "mar_air" (Marriott card airline credit). Otherwise null.
 
-Then add up to 5 short Chinese observations about spending habits worth questioning (subscriptions to cancel, fees that could be avoided, merchants where spend jumped). Do not comment on which card to use; the app computes that.
+Then up to 5 short Chinese observations about habits worth questioning (subscriptions to cancel, avoidable fees, spend jumps). Do not discuss which card to use.
 
 Reply with only JSON: {"txns":[...],"insights":["..."]}
 
-Statement text:
-"""
-${text.slice(0, 60000)}
-"""`;
+${lines.slice(0, 60000)}`;
 }
 function evaluate(txns, month) {
   const d0 = D(month + "-15");
-  const rows = [];
+  const rows = [], credits = [];
   for (const t of txns) {
     if (!t || typeof t.amount !== "number" || !isFinite(t.amount)) continue;
+    if (t.amount < 0 && t.creditFor && CREDIT_IDS.includes(t.creditFor)) { credits.push({ date: t.date || "", merchant: t.merchant || "", amount: t.amount, creditFor: t.creditFor, card: t.card }); continue; }
     if (t.category === "payment" || t.category === "refund" || t.amount <= 0) continue;
     const cat = CAT_ENUM.includes(t.category) ? t.category : "other";
     const card = CARDS[t.card] ? t.card : null;
@@ -647,56 +708,139 @@ function evaluate(txns, month) {
   const optimal = rows.reduce((s, r) => s + r.bestVal, 0);
   const byCat = {};
   for (const r of rows) byCat[r.category] = (byCat[r.category] || 0) + r.amount;
-  return { rows, spend, earned, optimal, missed: optimal - earned, byCat };
+  return { rows, credits, spend, earned, optimal, missed: optimal - earned, byCat };
 }
 
+// What a saved review adds to the progress trackers and credit usage.
+function contributions(R) {
+  const c = { spend: {}, usage: {} };
+  const add = (o, k, v) => { o[k] = (o[k] || 0) + v; };
+  const dOf = (x) => (/^\d{4}-\d{2}-\d{2}$/.test(x.date || "") ? D(x.date) : D(R.month + "-15"));
+  const y = NOW.getFullYear(), q = quarterKey(NOW);
+  const cy = (id, d) => { const b = BENEFITS.find((x) => x.id === id); return periodOf(b, d).key === periodOf(b, NOW).key; };
+  for (const r of R.rows) {
+    const d = dOf(r);
+    if (r.card === "hh" && d.getFullYear() === y) add(c.spend, "hhCal", r.amount);
+    if (r.card === "aa" && cy("aa_20k", d)) add(c.spend, "aaYear", r.amount);
+    if (r.card === "ihg" && cy("ihg_20k", d)) add(c.spend, "ihgYear", r.amount);
+    if (r.card === "mar" && ["grocery", "gas", "dining"].includes(r.category) && d.getFullYear() === y) add(c.spend, "mar3x", r.amount);
+    if (r.card === "dis" && CFG.discoverVariant === "cashback" && quarterKey(d) === q && discoverCats(q).includes(r.category)) add(c.spend, "dis5", r.amount);
+  }
+  for (const cr of R.credits || []) {
+    const b = BENEFITS.find((x) => x.id === cr.creditFor); if (!b) continue;
+    add(c.usage, b.id + "_" + periodOf(b, dOf(cr)).key, Math.abs(cr.amount));
+  }
+  return c;
+}
+function applyContrib(prev, next) {
+  prev = prev || { spend: {}, usage: {} };
+  const keys = (a, b) => [...new Set([...Object.keys(a || {}), ...Object.keys(b || {})])];
+  for (const k of keys(prev.spend, next.spend)) {
+    const dlt = (next.spend[k] || 0) - (prev.spend[k] || 0);
+    if (dlt) CFG.spend[k] = Math.max(0, Math.round(((CFG.spend[k] || 0) + dlt) * 100) / 100);
+  }
+  saveCfg();
+  for (const k of keys(prev.usage, next.usage)) {
+    const dlt = (next.usage[k] || 0) - (prev.usage[k] || 0); if (!dlt) continue;
+    const b = BENEFITS.find((x) => k.startsWith(x.id + "_"));
+    const u = USAGE[k] || {};
+    const used = Math.max(0, Math.min(b?.amt || Infinity, (u.used || 0) + dlt));
+    USAGE[k] = { ...u, used, status: b && used >= b.amt ? "done" : (u.status === "na" ? "na" : "open") };
+    saveUsage(k);
+  }
+}
+
+let PENDING = []; // [{name, card, month, parsed}]
+let RESULTS = []; // analysed, not yet saved
 function renderReview() {
   const v = $("#view-review"); v.replaceChildren();
-  const m = new Date(NOW.getFullYear(), NOW.getMonth(), 1);
-  const monthDefault = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}`;
-  const month = h("input", { type: "month", id: "rv-month", value: monthDefault });
-  const card = h("select", { id: "rv-card" }, Object.entries(CARDS).map(([k, c]) => h("option", { value: k }, c.short)));
-  const ta = h("textarea", { id: "rv-text", placeholder: "从网银复制交易明细粘贴到这里，或选 CSV 文件。\n例：\n10/03  WHOLE FOODS MARKET #123   86.42\n10/05  UBER *TRIP                 23.10\n10/09  NETFLIX.COM                15.49" });
-  const file = h("input", { type: "file", id: "rv-file", accept: ".csv,.txt,text/csv,text/plain", onchange: (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    const fr = new FileReader(); fr.onload = () => { ta.value = (ta.value ? ta.value + "\n" : "") + String(fr.result); }; fr.readAsText(f);
-  } });
   const status = h("div", { class: "status", id: "rv-status", hidden: true });
-  const go = h("button", { class: "primary", id: "rv-go", onclick: () => runReview(ta.value, card.value, month.value, status, go) }, SAMPLE ? "让 Claude 分析" : "分析（本地关键词）");
-  v.append(h("section", {},
-    h("div", {}, h("h2", {}, "月度账单复盘"), h("span", { class: "note" }, "一次粘贴一张卡的账单。Claude 负责给每笔交易分类、标出费用和订阅；用错卡少赚了多少由本页按你的估值算。")),
-    h("div", { class: "panel row" },
-      h("div", { class: "grid2" }, h("label", { class: "field" }, h("span", {}, "账单月份"), month), h("label", { class: "field" }, h("span", {}, "这张账单是哪张卡"), card)),
-      ta, h("label", { class: "field" }, h("span", {}, "或导入 CSV"), file),
-      h("div", { class: "actions" }, go, SAMPLE ? null : h("span", { class: "note" }, "未连接 Claude，用关键词粗分类。")))),
-    status, h("div", { id: "rv-result" }), h("div", { id: "rv-history" }));
-  renderReviewHistory();
-}
-
-async function runReview(text, defCard, month, status, btn) {
-  if (!text.trim()) { status.hidden = false; status.textContent = "先粘贴账单内容。"; return; }
-  status.hidden = false; btn.disabled = true;
-  let txns = null, insights = [], source = "local";
-  if (SAMPLE) {
-    status.textContent = "Claude 正在给交易分类…";
-    try {
-      const res = await SAMPLE.json(claudePrompt(text, defCard, month), { modelTier: "default" });
-      if (res && Array.isArray(res.txns)) { txns = res.txns; insights = Array.isArray(res.insights) ? res.insights.map(String).slice(0, 5) : []; source = "claude"; }
-    } catch (e) {
-      status.textContent = e?.code === "not_granted" ? "没有授权调用 Claude，改用本地关键词分类。" : `Claude 分类失败（${e?.code || "error"}），改用本地关键词分类。`;
+  const file = h("input", { type: "file", id: "rv-file", multiple: true, accept: ".csv,.txt,text/csv,text/plain", onchange: async (e) => {
+    const files = [...e.target.files];
+    for (const f of files) {
+      const text = await f.text();
+      const parsed = parseStatement(text);
+      PENDING.push({ name: f.name, parsed, card: guessCard(f.name, parsed.header, parsed.hint), month: inferMonth(parsed.txns) });
     }
-  }
-  if (!txns) txns = localParse(text, defCard);
-  btn.disabled = false;
-  if (!txns.length) { status.textContent = "没认出任何交易。确认每行带有金额（如 23.10）。"; return; }
-  const ev = evaluate(txns, month);
-  LAST = { month, card: defCard, source, insights, ...ev, createdAt: new Date().toISOString() };
-  status.textContent = `${source === "claude" ? "Claude" : "本地关键词"}识别出 ${ev.rows.length} 笔消费。分类不对的可以在下面改。`;
-  renderResult(LAST, true);
+    e.target.value = ""; renderPending();
+  } });
+  const ta = h("textarea", { id: "rv-text", placeholder: "没有 CSV 也可以：从网银复制交易明细粘贴到这里。\n例：\n10/03  WHOLE FOODS MARKET #123   86.42\n10/05  UBER *TRIP                 23.10" });
+  const addPaste = h("button", { class: "small", onclick: () => {
+    if (!ta.value.trim()) return;
+    const parsed = parseStatement(ta.value);
+    PENDING.push({ name: "粘贴的明细", parsed, card: "", month: inferMonth(parsed.txns) }); ta.value = ""; renderPending();
+  } }, "加入列表");
+  v.append(h("section", {},
+    h("div", {}, h("h2", {}, "月度账单复盘"), h("span", { class: "note" }, "把各家导出的 CSV 一次全选进来。保存后，消费进度和到账的抵扣会自动更新。")),
+    h("div", { class: "panel row" },
+      h("label", { class: "field" }, h("span", {}, "选择 CSV 文件（可多选）"), file),
+      h("details", {}, h("summary", {}, "或粘贴明细"), h("div", { style: "display:grid;gap:8px;margin-top:8px" }, ta, h("div", { class: "actions" }, addPaste)))),
+    h("div", { id: "rv-pending" }), status, h("div", { id: "rv-result" }), h("div", { id: "rv-history" })));
+  renderPending(); renderResults(); renderReviewHistory();
 }
-
-function renderResult(R, editable) {
-  const box = $("#rv-result"); box.replaceChildren();
+function renderPending() {
+  const box = $("#rv-pending"); if (!box) return; box.replaceChildren();
+  if (!PENDING.length) return;
+  const list = h("div", { class: "panel rows" }, PENDING.map((p, i) => {
+    const sel = h("select", { id: "pd-card-" + i, "aria-label": "哪张卡", onchange: (e) => { p.card = e.target.value; renderPending(); } },
+      h("option", { value: "", selected: !p.card }, "选择卡…"), Object.entries(CARDS).map(([k, c]) => h("option", { value: k, selected: p.card === k }, c.short)));
+    const mo = h("input", { type: "month", id: "pd-month-" + i, value: p.month || "", "aria-label": "月份", onchange: (e) => { p.month = e.target.value; } });
+    return h("div", { class: "row" },
+      h("div", { class: "row-head" }, h("h3", { style: "overflow-wrap:anywhere" }, p.name), h("button", { class: "small ghost", onclick: () => { PENDING.splice(i, 1); renderPending(); } }, "移除")),
+      h("span", { class: "note" }, `${p.parsed.txns.length} 行交易` + (p.card ? "" : "。没认出是哪张卡，请选一下。")),
+      h("div", { class: "grid2" }, sel, mo));
+  }));
+  const ready = PENDING.every((p) => p.card && p.month && p.parsed.txns.length);
+  const go = h("button", { class: "primary", id: "rv-go", disabled: !ready, onclick: () => runAll(go) }, SAMPLE ? `让 Claude 分析 ${PENDING.length} 份账单` : `分析 ${PENDING.length} 份账单（本地关键词）`);
+  box.append(h("section", {}, h("h3", {}, "待分析"), list, h("div", { class: "actions" }, go, SAMPLE ? null : h("span", { class: "note" }, "未连接 Claude，用关键词粗分类。"))));
+}
+async function runAll(btn) {
+  const status = $("#rv-status"); status.hidden = false; btn.disabled = true;
+  RESULTS = [];
+  for (const [n, p] of PENDING.entries()) {
+    const base = p.parsed.txns.map((t) => localClassify(t, p.card));
+    let txns = base, insights = [], source = "local";
+    if (SAMPLE) {
+      status.textContent = `Claude 正在分类第 ${n + 1}/${PENDING.length} 份（${CARDS[p.card].short}）…`;
+      try {
+        const res = await SAMPLE.json(claudePrompt(p.parsed.txns, p.card, p.month), { modelTier: "default" });
+        if (res && Array.isArray(res.txns)) {
+          const by = new Map(res.txns.filter((x) => x && Number.isInteger(x.i)).map((x) => [x.i, x]));
+          txns = base.map((b, i) => { const x = by.get(i); if (!x) return b; return { ...b, merchant: String(x.merchant || b.merchant).slice(0, 80), category: CAT_ENUM.includes(x.category) ? x.category : b.category, foreign: !!x.foreign, flag: x.flag || null, note: String(x.note || ""), creditFor: CREDIT_IDS.includes(x.creditFor) ? x.creditFor : b.creditFor }; });
+          insights = Array.isArray(res.insights) ? res.insights.map(String).slice(0, 5) : [];
+          source = "claude";
+        }
+      } catch (e) {
+        if (e?.code === "not_granted") SAMPLE = null;
+      }
+    }
+    RESULTS.push({ month: p.month, card: p.card, source, insights, ...evaluate(txns, p.month), createdAt: new Date().toISOString() });
+  }
+  PENDING = [];
+  const n = RESULTS.reduce((s, r) => s + r.rows.length, 0), c = RESULTS.reduce((s, r) => s + r.credits.length, 0);
+  status.textContent = `识别出 ${n} 笔消费、${c} 笔福利抵扣。分类不对的可以在下面改，确认后点“全部保存”。`;
+  renderPending(); renderResults();
+}
+function renderResults() {
+  const box = $("#rv-result"); if (!box) return; box.replaceChildren();
+  if (!RESULTS.length) return;
+  RESULTS.forEach((R, i) => { const c = h("div", { style: "display:grid;gap:18px" }); box.append(c); renderResult(R, true, c); });
+  const save = h("button", { class: "primary", id: "rv-save", onclick: async () => {
+    save.disabled = true; save.textContent = "保存中…";
+    for (const R of RESULTS) {
+      const key = R.month + "_" + R.card;
+      R.contrib = contributions(R);
+      applyContrib(REVIEWS[key]?.contrib, R.contrib);
+      REVIEWS[key] = stripReview(R);
+      await saveReview(key);
+    }
+    RESULTS = []; renderAll(); renderResults(); renderReviewHistory();
+    const st = $("#rv-status"); st.hidden = false; st.textContent = "已保存，进度和抵扣已更新。";
+  } }, "全部保存并更新进度");
+  box.append(h("div", { class: "actions" }, save, h("span", { class: "note" }, "同一张卡同一个月重复保存会覆盖，不会重复累加。")));
+}
+function renderResult(R, editable, box = $("#rv-result")) {
+  box.replaceChildren();
   const eff = R.optimal > 0 ? R.earned / R.optimal : 1;
   box.append(h("section", {},
     h("h2", {}, `${R.month} · ${CARDS[R.card]?.short || "混合"}`),
@@ -705,7 +849,8 @@ function renderResult(R, editable) {
       h("div", { class: "panel fig" }, h("span", { class: "label" }, "实际回报"), h("b", {}, "$" + fmt2(R.earned))),
       h("div", { class: "panel fig" }, h("span", { class: "label" }, "最优可得"), h("b", {}, "$" + fmt2(R.optimal))),
       h("div", { class: "panel fig" }, h("span", { class: "label" }, "少赚了"), h("b", { style: `color:var(${R.missed > 5 ? "--bad" : "--good"})` }, "$" + fmt2(R.missed)))),
-    h("span", { class: "note" }, `刷卡效率 ${(eff * 100).toFixed(0)}%。按你设定的每分价值折算成美元，Freedom 5% 封顶额度按账单当月计入。`)));
+    h("span", { class: "note" }, `刷卡效率 ${(eff * 100).toFixed(0)}%。按你设定的每分价值折算成美元。`),
+    R.credits?.length ? h("div", { class: "panel rows" }, R.credits.map((c) => h("div", { class: "txn" }, h("span", { class: "m" }, h("b", {}, BENEFITS.find((b) => b.id === c.creditFor)?.title || c.creditFor), " ", h("span", { class: "note" }, c.date)), h("span", { class: "num", style: "color:var(--good)" }, "+$" + fmt2(Math.abs(c.amount)))))) : null));
 
   // Category breakdown
   const cats = Object.entries(R.byCat).sort((a, b) => b[1] - a[1]);
@@ -726,23 +871,16 @@ function renderResult(R, editable) {
     bad.length ? h("div", { class: "panel rows" }, bad.map((r) => txnRow(r, R, editable))) : h("div", { class: "status" }, "这个月每笔都刷对了卡。")));
   box.append(h("details", {}, h("summary", {}, `合理：${ok.length} 笔`), h("div", { class: "panel rows", style: "margin-top:8px" }, ok.map((r) => txnRow(r, R, editable)))));
 
-  if (editable) {
-    const save = h("button", { class: "primary", id: "rv-save", onclick: async () => {
-      REVIEWS[R.month + "_" + R.card] = stripReview(R); save.disabled = true; save.textContent = "保存中…";
-      await saveReview(R.month + "_" + R.card); save.textContent = "已保存"; renderReviewHistory();
-    } }, "保存这次复盘");
-    box.append(h("div", { class: "actions" }, save, h("span", { class: "note" }, "保存后 Claude 也能读到历史复盘，帮你看趋势。")));
-  }
 }
 function stripReview(R) {
-  return { month: R.month, card: R.card, source: R.source, insights: R.insights || [], spend: R.spend, earned: R.earned, optimal: R.optimal, missed: R.missed, byCat: R.byCat, createdAt: R.createdAt,
+  return { month: R.month, card: R.card, source: R.source, insights: R.insights || [], credits: R.credits || [], contrib: R.contrib || null, spend: R.spend, earned: R.earned, optimal: R.optimal, missed: R.missed, byCat: R.byCat, createdAt: R.createdAt,
     rows: R.rows.map((r) => ({ date: r.date || "", merchant: r.merchant || "", amount: r.amount, category: r.category, foreign: !!r.foreign, card: r.card, flag: r.flag || null, note: r.note || "", bestCard: r.bestCard, usedVal: r.usedVal, bestVal: r.bestVal, missed: r.missed })) };
 }
 function txnRow(r, R, editable, showFlag) {
   const flagLabel = { fee: "费用", interest: "利息", subscription: "订阅", duplicate: "疑似重复", unusual: "异常" };
   const right = h("span", { class: "num" }, "$" + fmt2(r.amount));
   const sel = editable ? h("select", { "aria-label": "改分类", style: "width:auto;min-height:30px;padding:2px 6px;font-size:13px", onchange: (e) => {
-    r.category = e.target.value; const re = evaluate(R.rows.map((x) => ({ ...x })), R.month); Object.assign(R, re); renderResult(R, true);
+    r.category = e.target.value; const re = evaluate(R.rows.map((x) => ({ ...x })).concat(R.credits || []), R.month); Object.assign(R, re); renderResult(R, true, sel.closest("#rv-result > div"));
   } }, CAT_ENUM.filter((c) => c !== "payment" && c !== "refund").map((c) => h("option", { value: c, selected: c === r.category }, CAT_LABEL[c]))) : h("span", { class: "chip" }, CAT_LABEL[r.category] || r.category);
   const usedTxt = r.card ? `${CARDS[r.card].short} ${pctS(r.usedPct ?? 0)}` : "";
   let advice;
@@ -757,7 +895,7 @@ function txnRow(r, R, editable, showFlag) {
 function renderReviewHistory() {
   const box = $("#rv-history"); if (!box) return; box.replaceChildren();
   const list = Object.entries(REVIEWS).filter(([, r]) => r).sort((a, b) => b[0].localeCompare(a[0]));
-  if (!list.length) { box.append(h("section", {}, h("h3", {}, "历史复盘"), h("div", { class: "status" }, "还没有保存的复盘。每月账单出来后粘贴进来分析，再点“保存这次复盘”。"))); return; }
+  if (!list.length) { box.append(h("section", {}, h("h3", {}, "历史复盘"), h("div", { class: "status" }, "还没有保存的复盘。每月账单出来后把 CSV 选进来分析，再点“全部保存并更新进度”。"))); return; }
   box.append(h("section", {}, h("h3", {}, "历史复盘"), h("div", { class: "panel rows" }, list.map(([k, r]) => {
     const eff = r.optimal > 0 ? r.earned / r.optimal : 1;
     return h("div", { class: "row", role: "button", tabindex: "0", style: "cursor:pointer", onclick: () => { renderResult({ ...r, rows: r.rows.map((x) => ({ ...x, usedPct: x.card ? valuePct(x.card, x.category, D(r.month + "-15"), { foreign: x.foreign, historical: true }).pct : null, bestPct: valuePct(x.bestCard, x.category, D(r.month + "-15"), { foreign: x.foreign, historical: true }).pct })) }, false); $("#rv-result").scrollIntoView({ behavior: "smooth" }); } },
@@ -797,6 +935,11 @@ function renderSettings() {
     h("label", { class: "field" }, h("span", {}, "Citi AA 卡年度消费 $"), num("sp-aa", CFG.spend.aaYear, (x) => CFG.spend.aaYear = x)),
     h("label", { class: "field" }, h("span", {}, "IHG 卡年度消费 $"), num("sp-ihg", CFG.spend.ihgYear, (x) => CFG.spend.ihgYear = x)))))) ;
 
+  v.append(h("span", { class: "note" }, "填开始导入 CSV 之前已经花掉的部分。之后保存的复盘会自动累加到这些数字上。"));
+  v.append(h("section", {}, h("h2", {}, "Chase 卡号末四位"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
+    ["mar", "ihg", "fr"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
+      h("input", { id: "l4-" + k, inputmode: "numeric", maxlength: "4", value: CFG.last4[k] || "", placeholder: "1234", onchange: (e) => { CFG.last4[k] = e.target.value.replace(/\D/g, "").slice(0, 4); saveCfg(); } })))),
+    h("span", { class: "note" }, "三张 Chase 卡导出的 CSV 格式一样，靠文件名里的末四位区分。不填也行，导入时手动选。"))));
   const months = [["0", "未设置"], ...Array.from({ length: 12 }, (_, i) => [String(i + 1), `${i + 1} 月`])];
   v.append(h("section", {}, h("h2", {}, "开卡月份"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     ["hh", "ihg", "mar", "aa"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
