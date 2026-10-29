@@ -25,6 +25,7 @@
   --c-hh: #1f4b95;
   --c-ihg: #2e7353;
   --c-fr: #3a77d6;
+  --c-dis: #c2570c;
   --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
   --f-body: "IBM Plex Sans", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -35,7 +36,7 @@
     --bg: #0f141a; --surface: #171e27; --sunk: #1f2833; --fg: #e6ebf1; --muted: #93a0b0; --line: #2b3542;
     --accent: #8ea4ff; --accent-soft: #24305a; --brass: #d9ae50;
     --good: #5fcf94; --good-soft: #153826; --warn: #f0a650; --warn-soft: #3d2a12; --bad: #ff8a80; --bad-soft: #43201d;
-    --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-fr: #7fb0ff;
+    --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-fr: #7fb0ff; --c-dis: #f39a55;
     color-scheme: dark;
   }
 }
@@ -43,7 +44,7 @@
   --bg: #0f141a; --surface: #171e27; --sunk: #1f2833; --fg: #e6ebf1; --muted: #93a0b0; --line: #2b3542;
   --accent: #8ea4ff; --accent-soft: #24305a; --brass: #d9ae50;
   --good: #5fcf94; --good-soft: #153826; --warn: #f0a650; --warn-soft: #3d2a12; --bad: #ff8a80; --bad-soft: #43201d;
-  --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-fr: #7fb0ff;
+  --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-fr: #7fb0ff; --c-dis: #f39a55;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -162,36 +163,43 @@ const AA_REFRESH = D("2027-01-24");
 const IHG_REFRESH = D("2027-01-01");
 
 const CARDS = {
-  fr:  { name: "Chase Freedom", short: "Freedom", cur: "UR", fee: 0, ftf: 0.03, color: "var(--c-fr)" },
+  fr:  { name: "Chase Freedom Unlimited", short: "Freedom U", cur: "UR", fee: 0, ftf: 0.03, color: "var(--c-fr)" },
+  dis: { name: "Discover it Cash Back", short: "Discover", cur: "DIS", fee: 0, ftf: 0, color: "var(--c-dis)" },
   hh:  { name: "Hilton Honors Aspire (Amex)", short: "Aspire", cur: "HH", fee: 550, ftf: 0, color: "var(--c-hh)" },
   aa:  { name: "Citi AAdvantage Platinum Select", short: "Citi AA", cur: "AA", fee: 99, ftf: 0, color: "var(--c-aa)" },
   ihg: { name: "IHG One Rewards Premier", short: "IHG Premier", cur: "IHG", fee: 99, ftf: 0, color: "var(--c-ihg)" },
   mar: { name: "Marriott Bonvoy Boundless", short: "Boundless", cur: "MAR", fee: 95, ftf: 0, color: "var(--c-mar)" },
 };
-const CUR_LABEL = { UR: "Chase UR", HH: "Hilton", AA: "AA miles", IHG: "IHG", MAR: "Marriott" };
+const CUR_LABEL = { DIS: "Discover 返现", UR: "Chase UR", HH: "Hilton", AA: "AA miles", IHG: "IHG", MAR: "Marriott" };
 
 const CATS = [
   ["dining", "餐厅"], ["grocery", "超市 Grocery"], ["gas", "加油 / EV 充电"], ["other", "其他一切"],
   ["flight_aa", "AA 机票"], ["flight_other", "其他航司机票"], ["car_rental", "租车"], ["transit", "打车 / 公交"],
   ["hotel_hilton", "Hilton 酒店"], ["hotel_marriott", "Marriott 酒店"], ["hotel_ihg", "IHG 酒店"], ["hotel_other", "其他酒店 / OTA"],
-  ["streaming", "流媒体"], ["drugstore", "药店"], ["red_cross", "Red Cross 捐款"], ["foreign", "海外消费"],
+  ["streaming", "流媒体"], ["entertainment", "娱乐 / 演出 / 电影"], ["utilities", "水电燃气网费"], ["drugstore", "药店"], ["red_cross", "Red Cross 捐款"], ["foreign", "海外消费"],
 ];
 const CAT_LABEL = Object.fromEntries(CATS);
 const FREEDOM_Q_DEFAULT = { "2026Q4": ["grocery", "dining", "red_cross"] };
 const FREEDOM_ACTIVATE_BY = { "2026Q4": "2026-12-14" };
+const DISCOVER_Q_DEFAULT = { "2026Q4": ["dining", "entertainment", "utilities"] };
 
 const DEFAULT_CONFIG = {
-  freedomVariant: "legacy",            // legacy | flex | unlimited
-  vals: { UR: 1.0, HH: 0.45, AA: 1.5, IHG: 0.5, MAR: 0.7 }, // cents/point, user assumptions
+  freedomVariant: "unlimited",         // legacy | flex | unlimited
+  discoverVariant: "cashback",         // cashback | miles | chrome
+  discoverQ: {},                       // overrides { "2026Q4": [...] }
+  disActivated: {},
+  disMatch: false,                     // first-year Cashback Match
+  vals: { DIS: 1.0, UR: 1.0, HH: 0.45, AA: 1.5, IHG: 0.5, MAR: 0.7 }, // cents/point, user assumptions
   anniv: { aa: 0, mar: 0, hh: 0, ihg: 0 },                   // card-open month 1-12, 0 = unset
   freedomQ: {},                        // overrides { "2026Q4": [...] }
   frActivated: {},                     // { "2026Q4": true }
-  spend: { mar3x: 0, fr5: 0, hhCal: 0, aaYear: 0, ihgYear: 0, marYear: 0 },
+  spend: { dis5: 0, disChrome: 0, mar3x: 0, fr5: 0, hhCal: 0, aaYear: 0, ihgYear: 0, marYear: 0 },
   fnValue: { hh: 400, ihg: 200, mar: 175 },                  // what one free night is worth to you, $
 };
 
 function quarterKey(d) { return d.getFullYear() + "Q" + (Math.floor(d.getMonth() / 3) + 1); }
 function freedomCats(q) { return CFG.freedomQ[q] || FREEDOM_Q_DEFAULT[q] || []; }
+function discoverCats(q) { return CFG.discoverQ[q] || DISCOVER_Q_DEFAULT[q] || []; }
 
 // Returns { m: points per $, notes: [], verify }
 function earn(card, cat, d, opts = {}) {
@@ -224,6 +232,21 @@ function earn(card, cat, d, opts = {}) {
       if (["flight_aa", "flight_other", "car_rental", "gas", "grocery", "dining"].includes(cat)) { m = 5; verify = true; n.push("2027 新类别（老卡生效日待 Chase 通知）"); }
       else m = 3;
     }
+  } else if (card === "dis") {
+    const v = S.discoverVariant;
+    if (v === "miles") m = 1.5;
+    else if (v === "chrome") {
+      verify = true;
+      if (["gas", "dining"].includes(cat) && ((S.spend.disChrome || 0) < 1000 || opts.historical)) { m = 2; n.push("2% 加油+餐厅每季前 $1,000（凭记忆）"); }
+    } else {
+      const q = quarterKey(d);
+      if (discoverCats(q).includes(cat)) {
+        if (!S.disActivated[q]) n.push("本季 5% 类别，但你还没激活（激活前的消费不补）");
+        else if ((S.spend.dis5 || 0) >= 1500 && !opts.historical) n.push("本季 $1,500 额度已用完");
+        else { m = 5; n.push(`本季 5%，季度 $1,500 封顶（已用 $${fmt0(S.spend.dis5)}）`); }
+      }
+    }
+    if (S.disMatch) { m *= 2; n.push("首年 Cashback Match ×2"); }
   } else if (card === "fr") {
     const v = S.freedomVariant;
     const base = v === "unlimited" ? 1.5 : 1;
@@ -400,6 +423,9 @@ function alerts() {
     const by = FREEDOM_ACTIVATE_BY[q];
     out.push({ lvl: "bad", t: `Freedom ${q} 5% 还没激活`, d: `本季：${freedomCats(q).map((c) => CAT_LABEL[c]).join("、")}${by ? `，${by} 前激活` : ""}。激活后去设置里勾上。` });
   }
+  if (CFG.discoverVariant === "cashback" && discoverCats(q).length && !CFG.disActivated[q]) {
+    out.push({ lvl: "bad", t: `Discover ${q} 5% 还没激活`, d: `本季：${discoverCats(q).map((c) => CAT_LABEL[c]).join("、")}。Discover 不补激活前的消费，越早越好。激活后去设置里勾上。` });
+  }
   for (const b of BENEFITS) {
     if (!b.amt || b.cert) continue;
     const p = periodOf(b, NOW); const u = USAGE[b.id + "_" + p.key] || {};
@@ -481,10 +507,21 @@ function renderPerks() {
     h("div", { class: "panel fig" }, h("span", { class: "label" }, "差额"), h("b", { style: `color:var(${captured >= fees ? "--good" : "--warn"})` }, (captured >= fees ? "+" : "−") + "$" + fmt0(Math.abs(captured - fees))))));
   v.append(h("span", { class: "note" }, "抵扣只算现金类，免房券价值不计入。"));
 
-  for (const ck of ["hh", "ihg", "mar", "aa", "fr"]) {
+  for (const ck of ["hh", "ihg", "mar", "aa", "dis", "fr"]) {
     const items = BENEFITS.filter((b) => b.card === ck);
     const panel = h("div", { class: "panel rows" });
-    if (ck === "fr") {
+    if (ck === "dis") {
+      const q = quarterKey(NOW);
+      if (CFG.discoverVariant === "cashback") panel.append(h("div", { class: "row" },
+        h("div", { class: "row-head" }, h("h3", {}, `${q} 5% 类别`), h("span", { class: "chip " + (CFG.disActivated[q] ? "good" : "bad") }, CFG.disActivated[q] ? "已激活" : "未激活")),
+        h("span", { class: "note" }, `${discoverCats(q).map((c) => CAT_LABEL[c]).join("、") || "本季类别未设置"}；季度前 $1,500。流媒体/订阅不算娱乐。`),
+        bar((CFG.spend.dis5 || 0) / 1500), h("span", { class: "note num" }, `$${fmt0(CFG.spend.dis5)} / $1,500`),
+        h("div", { class: "actions" }, h("button", { class: "small", onclick: () => { CFG.disActivated[q] = !CFG.disActivated[q]; saveCfg(); renderAll(); } }, CFG.disActivated[q] ? "标记为未激活" : "我已激活"))));
+      else panel.append(h("div", { class: "row" }, h("span", { class: "note" }, "没有需要追踪的福利。")));
+      panel.append(h("div", { class: "row" }, h("span", { class: "note" }, "无海外手续费，但海外受理率低，出国备一张 Visa/Mastercard。")));
+    }
+    if (ck === "fr" && CFG.freedomVariant === "unlimited") panel.append(h("div", { class: "row" }, h("span", { class: "note" }, "没有需要追踪的福利。3% 海外交易手续费，海外别刷。Chase Travel 订旅行 5%，页面未计入。")));
+    if (ck === "fr" && CFG.freedomVariant !== "unlimited") {
       const q = quarterKey(NOW);
       panel.append(h("div", { class: "row" },
         h("div", { class: "row-head" }, h("h3", {}, `${q} 5% 类别`), h("span", { class: "chip " + (CFG.frActivated[q] ? "good" : "bad") }, CFG.frActivated[q] ? "已激活" : "未激活")),
@@ -551,6 +588,8 @@ const KEYWORDS = [
   ["grocery", /whole foods|trader joe|safeway|kroger|ralphs|vons|h-?mart|99 ranch|sprouts|wegmans|publix|aldi|albertsons|grocery|market/i],
   ["drugstore", /cvs|walgreens|rite aid|pharmacy/i],
   ["red_cross", /red cross/i],
+  ["utilities", /pg&e|pge|con ed|edison|xfinity|comcast|spectrum|at&t|verizon|t-mobile|water|electric|utility/i],
+  ["entertainment", /ticketmaster|stubhub|amc|regal|cinemark|fandango|seatgeek|disneyland|universal studios|live nation|axs/i],
   ["dining", /restaurant|cafe|coffee|starbucks|doordash|uber eats|grubhub|pizza|sushi|ramen|bar |grill|kitchen|bakery|tea|boba|mcdonald|chipotle|tst\*|sq \*/i],
 ];
 function localParse(text, defCard) {
@@ -571,11 +610,11 @@ function localParse(text, defCard) {
 const CAT_ENUM = CATS.map((c) => c[0]).filter((c) => c !== "foreign").concat(["payment", "refund"]);
 function claudePrompt(text, defCard, month) {
   return `You are categorizing credit card statement transactions for a US cardholder. Statement month: ${month}.
-Default card if a line doesn't say otherwise: ${defCard} (card ids: fr=Chase Freedom, hh=Hilton Aspire Amex, aa=Citi AAdvantage Platinum Select, ihg=Chase IHG Premier, mar=Chase Marriott Boundless).
+Default card if a line doesn't say otherwise: ${defCard} (card ids: dis=Discover it, fr=Chase Freedom Unlimited, hh=Hilton Aspire Amex, aa=Citi AAdvantage Platinum Select, ihg=Chase IHG Premier, mar=Chase Marriott Boundless).
 
 For EVERY purchase line, output an object:
 {"date":"YYYY-MM-DD or as given","merchant":"short clean merchant name","amount":number (positive = charge, negative = credit/refund),"category":one of ${JSON.stringify(CAT_ENUM)},"foreign":true if charged in a foreign currency or foreign merchant,"card":card id,"flag":null or one of "fee"(annual/late/foreign fee),"interest","subscription"(recurring service),"duplicate"(same merchant+amount repeated suspiciously),"unusual"(looks out of pattern or possibly fraudulent),"note":"<=12 words, Chinese, only when flag is set"}
-Category guidance: food delivery apps = dining; Walmart/Target/Costco = other (not grocery); flights booked on OTAs (Expedia etc.) = hotel_other; airline names = flight_aa (American Airlines only) or flight_other; statement payments = payment; annual fees = other with flag "fee".
+Category guidance: food delivery apps = dining; Walmart/Target/Costco = other (not grocery); movies/concerts/sports tickets/theme parks = entertainment (streaming stays streaming); electric/gas/water/internet/phone bills = utilities; flights booked on OTAs (Expedia etc.) = hotel_other; airline names = flight_aa (American Airlines only) or flight_other; statement payments = payment; annual fees = other with flag "fee".
 
 Then add up to 5 short Chinese observations about spending habits worth questioning (subscriptions to cancel, fees that could be avoided, merchants where spend jumped). Do not comment on which card to use; the app computes that.
 
