@@ -24,6 +24,7 @@
   --c-mar: #9a3f2c;
   --c-hh: #1f4b95;
   --c-ihg: #2e7353;
+  --c-ips: #5b4a9e;
   --c-fr: #3a77d6;
   --c-dis: #c2570c;
   --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
@@ -36,7 +37,7 @@
     --bg: #0f141a; --surface: #171e27; --sunk: #1f2833; --fg: #e6ebf1; --muted: #93a0b0; --line: #2b3542;
     --accent: #8ea4ff; --accent-soft: #24305a; --brass: #d9ae50;
     --good: #5fcf94; --good-soft: #153826; --warn: #f0a650; --warn-soft: #3d2a12; --bad: #ff8a80; --bad-soft: #43201d;
-    --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-fr: #7fb0ff; --c-dis: #f39a55;
+    --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-ips: #b3a4f0; --c-fr: #7fb0ff; --c-dis: #f39a55;
     color-scheme: dark;
   }
 }
@@ -44,7 +45,7 @@
   --bg: #0f141a; --surface: #171e27; --sunk: #1f2833; --fg: #e6ebf1; --muted: #93a0b0; --line: #2b3542;
   --accent: #8ea4ff; --accent-soft: #24305a; --brass: #d9ae50;
   --good: #5fcf94; --good-soft: #153826; --warn: #f0a650; --warn-soft: #3d2a12; --bad: #ff8a80; --bad-soft: #43201d;
-  --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-fr: #7fb0ff; --c-dis: #f39a55;
+  --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-ips: #b3a4f0; --c-fr: #7fb0ff; --c-dis: #f39a55;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -168,6 +169,7 @@ const CARDS = {
   hh:  { name: "Hilton Honors Aspire (Amex)", short: "Aspire", cur: "HH", fee: 550, ftf: 0, color: "var(--c-hh)" },
   aa:  { name: "Citi AAdvantage Platinum Select", short: "Citi AA", cur: "AA", fee: 99, ftf: 0, color: "var(--c-aa)" },
   ihg: { name: "IHG One Rewards Premier", short: "IHG Premier", cur: "IHG", fee: 99, ftf: 0, color: "var(--c-ihg)" },
+  ips: { name: "IHG One Rewards Premier Select", short: "IHG Select", cur: "IHG", fee: 350, ftf: 0, color: "var(--c-ips)" },
   mar: { name: "Marriott Bonvoy Boundless", short: "Boundless", cur: "MAR", fee: 95, ftf: 0, color: "var(--c-mar)" },
 };
 const CUR_LABEL = { DIS: "Discover 返现", UR: "Chase UR", HH: "Hilton", AA: "AA miles", IHG: "IHG", MAR: "Marriott" };
@@ -189,13 +191,13 @@ const DEFAULT_CONFIG = {
   discoverQ: {},                       // overrides { "2026Q4": [...] }
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
-  last4: { mar: "", ihg: "", fr: "" },  // Chase card last 4 digits, for CSV matching
+  last4: { mar: "", ihg: "", ips: "", fr: "" },  // Chase card last 4 digits, for CSV matching
   vals: { DIS: 1.0, UR: 1.0, HH: 0.45, AA: 1.5, IHG: 0.5, MAR: 0.7 }, // cents/point, user assumptions
-  anniv: { aa: 0, mar: 0, hh: 0, ihg: 0 },                   // card-open month 1-12, 0 = unset
+  anniv: { aa: 0, mar: 0, hh: 0, ihg: 0, ips: 0 },                   // card-open month 1-12, 0 = unset
   freedomQ: {},                        // overrides { "2026Q4": [...] }
   frActivated: {},                     // { "2026Q4": true }
-  spend: { dis5: 0, disChrome: 0, mar3x: 0, fr5: 0, hhCal: 0, aaYear: 0, ihgYear: 0, marYear: 0 },
-  fnValue: { hh: 400, ihg: 200, mar: 175 },                  // what one free night is worth to you, $
+  spend: { dis5: 0, disChrome: 0, mar3x: 0, fr5: 0, hhCal: 0, aaYear: 0, ihgYear: 0, ipsCal: 0, marYear: 0 },
+  fnValue: { hh: 400, ihg: 200, ips: 300, mar: 175 },                  // what one free night is worth to you, $
 };
 
 function quarterKey(d) { return d.getFullYear() + "Q" + (Math.floor(d.getMonth() / 3) + 1); }
@@ -233,6 +235,10 @@ function earn(card, cat, d, opts = {}) {
       if (["flight_aa", "flight_other", "car_rental", "gas", "grocery", "dining"].includes(cat)) { m = 5; verify = true; n.push("2027 新类别（老卡生效日待 Chase 通知）"); }
       else m = 3;
     }
+  } else if (card === "ips") {
+    if (cat === "hotel_ihg") { m = 12; n.push("卡本身 12x；会员积分另算"); }
+    else if (["dining", "flight_aa", "flight_other", "car_rental", "hotel_other", "transit"].includes(cat)) m = 6;
+    else m = 3;
   } else if (card === "dis") {
     const v = S.discoverVariant;
     if (v === "miles") m = 1.5;
@@ -293,6 +299,14 @@ const BENEFITS = [
   { id: "ihg_20k", card: "ihg", title: "$20k 消费奖励：$100 + 10k 分", amt: 0, period: "cardyear", goal: { key: "ihgYear", at: 20000 }, how: "卡年度内消费满 $20k 且续卡后发放。" },
   { id: "ihg_4th", card: "ihg", title: "积分兑换第 4 晚免费", period: "info", how: "连住 4 晚以上积分房时自动生效。" },
   { id: "ihg_ge", card: "ihg", title: "Global Entry / TSA PreCheck 抵扣", period: "info", how: "每 4 年一次。" },
+  { id: "ips_fb", card: "ips", title: "IHG 酒店餐饮抵扣", amt: 75, period: "quarter", how: "每季度最多 $75，在 IHG 酒店餐饮消费（挂房账）。" },
+  { id: "ips_air", card: "ips", title: "航空抵扣 $200", amt: 200, period: "year", how: "每自然年单笔 $250 以上直接向航司购买，返 $200。据报道活动到 2027/12/31。" },
+  { id: "ips_insta", card: "ips", title: "Instacart 抵扣", amt: 10, period: "month", verify: true, how: "每月最多 $10（只有一个来源提到，待核实）。" },
+  { id: "ips_ub", card: "ips", title: "United TravelBank Cash", amt: 50, period: "year", verify: true, how: "来源说法不一：每年 $50，或每半年 $25。" },
+  { id: "ips_fn", card: "ips", title: "周年免房券（≤60k 分）", amt: 0, period: "cardyear", cert: true, fn: "ips", how: "每个开卡周年后发放。" },
+  { id: "ips_15k", card: "ips", title: "自然年 $15k：20k 分 + 5 晚房晚", amt: 0, period: "year", goal: { key: "ipsCal", at: 15000 }, verify: true, how: "另外每消费 $5k 得 2 晚房晚积分。" },
+  { id: "ips_25k", card: "ips", title: "自然年 $25k：Diamond 到次年底", amt: 0, period: "year", goal: { key: "ipsCal", at: 25000 }, how: "默认送 Platinum + 20 晚房晚积分。" },
+  { id: "ips_info", card: "ips", title: "积分房第 4 晚免费 · 买分 7 折", period: "info", how: "自动生效。" },
   { id: "mar_fna", card: "mar", title: "周年免房券（≤35k 分）", amt: 0, period: "cardyear", cert: true, fn: "mar", how: "续卡后发放，可补最多 15k 分。" },
   { id: "mar_air", card: "mar", title: "航空消费抵扣（限时）", amt: 50, period: "half", verify: true, how: "据报道：航空消费满 $500 后每半年返最多 $50，活动到 2027/6/30，可能需登记或为定向。" },
   { id: "mar_enc", card: "mar", title: "15 晚房晚积分 + Silver", period: "info", how: "自动入账。" },
@@ -304,6 +318,7 @@ const BENEFITS = [
 // Period helpers --------------------------------------------------------------
 function periodOf(b, d) {
   const y = d.getFullYear(), mo = d.getMonth();
+  if (b.period === "month") return { key: `${y}M${String(mo + 1).padStart(2, "0")}`, end: new Date(y, mo + 1, 0), label: `${y}/${mo + 1} 月` };
   if (b.period === "quarter") { const q = Math.floor(mo / 3); return { key: y + "Q" + (q + 1), end: new Date(y, q * 3 + 3, 0), label: `Q${q + 1} ${y}` }; }
   if (b.period === "half") { const h = mo < 6 ? 0 : 1; return { key: y + "H" + (h + 1), end: new Date(y, h ? 12 : 6, 0), label: `${h ? "下" : "上"}半年 ${y}` }; }
   if (b.period === "year") return { key: String(y), end: new Date(y, 12, 0), label: `${y} 年` };
@@ -473,6 +488,8 @@ function renderUse() {
     { card: "hh", t: "Aspire 自然年消费 $30k → 第 2 张免房券", key: "hhCal", at: 30000, bonus: CFG.fnValue.hh },
     { card: "hh", t: "Aspire 自然年消费 $60k → 第 3 张免房券", key: "hhCal", at: 60000, bonus: CFG.fnValue.hh, after: 30000 },
     { card: "aa", t: "Citi AA 卡年度 $20k → $125 机票折扣", key: "aaYear", at: 20000, bonus: 125 },
+    { card: "ips", t: "IHG Select 自然年 $15k → 20k 分（待核实）", key: "ipsCal", at: 15000, bonus: 20000 * CFG.vals.IHG / 100 },
+    { card: "ips", t: "IHG Select 自然年 $25k → Diamond", key: "ipsCal", at: 25000, bonus: 0 },
     { card: "ihg", t: "IHG 卡年度 $20k → $100 + 10k 分", key: "ihgYear", at: 20000, bonus: 100 + 10000 * CFG.vals.IHG / 100 },
   ];
   const gl = h("div", { class: "panel rows" });
@@ -484,6 +501,7 @@ function renderUse() {
       h("div", { class: "row-head" }, h("h3", {}, g.t), cardTag(g.card)),
       bar((spent - base) / (g.at - base), spent >= g.at ? "good" : ""),
       h("span", { class: "note" }, spent >= g.at ? "已达标。" :
+        !g.bonus ? `已花 $${fmt0(spent)}，还差 $${fmt0(g.at - spent)}。奖励是身份，没有折成回报率。` :
         `已花 $${fmt0(spent)}，还差 $${fmt0(g.at - spent)}。确定能达标的话，一般消费实际回报 ≈ ${everyday.toFixed(2)}% + ${extra.toFixed(2)}% = ${(everyday + extra).toFixed(2)}%（奖励按你设的价值）。`)));
   }
   v.append(h("section", {}, h("div", {}, h("h2", {}, "消费目标"), h("span", { class: "note" }, "进度数字在设置里手动更新。达不到门槛的目标不要硬冲。")), gl));
@@ -508,7 +526,7 @@ function renderPerks() {
     h("div", { class: "panel fig" }, h("span", { class: "label" }, "差额"), h("b", { style: `color:var(${captured >= fees ? "--good" : "--warn"})` }, (captured >= fees ? "+" : "−") + "$" + fmt0(Math.abs(captured - fees))))));
   v.append(h("span", { class: "note" }, "抵扣只算现金类，免房券价值不计入。"));
 
-  for (const ck of ["hh", "ihg", "mar", "aa", "dis", "fr"]) {
+  for (const ck of ["hh", "ips", "ihg", "mar", "aa", "dis", "fr"]) {
     const items = BENEFITS.filter((b) => b.card === ck);
     const panel = h("div", { class: "panel rows" });
     if (ck === "dis") {
@@ -654,13 +672,14 @@ function inferMonth(txns) {
   const c = {}; for (const t of txns) if (t.date) c[t.date.slice(0, 7)] = (c[t.date.slice(0, 7)] || 0) + 1;
   return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
 }
-const CREDIT_IDS = ["hh_resort", "hh_flight", "hh_clear", "ihg_fb", "mar_air"];
+const CREDIT_IDS = ["hh_resort", "hh_flight", "hh_clear", "ihg_fb", "mar_air", "ips_fb", "ips_air", "ips_insta"];
 function localCredit(desc, card) {
   if (!/credit/i.test(desc)) return null;
   if (/resort/i.test(desc)) return "hh_resort";
   if (/clear/i.test(desc)) return "hh_clear";
-  if (/airline|flight|air travel/i.test(desc)) return card === "mar" ? "mar_air" : card === "hh" ? "hh_flight" : null;
-  if (card === "ihg" && /food|dining|beverage|f&b/i.test(desc)) return "ihg_fb";
+  if (/instacart/i.test(desc)) return card === "ips" ? "ips_insta" : null;
+  if (/airline|flight|air travel/i.test(desc)) return { mar: "mar_air", hh: "hh_flight", ips: "ips_air" }[card] || null;
+  if (/food|dining|beverage|f&b/i.test(desc)) return { ihg: "ihg_fb", ips: "ips_fb" }[card] || null;
   return null;
 }
 function localClassify(t, card) {
@@ -677,7 +696,7 @@ Each line is index|date|description|amount. Amount sign is already normalized: p
 
 For EVERY line output {"i":index,"merchant":"short clean merchant name","category":one of ${JSON.stringify(CAT_ENUM)},"foreign":bool (foreign currency or foreign merchant),"flag":null or "fee"|"interest"|"subscription"|"duplicate"|"unusual","note":"<=12 Chinese words, only when flag is set","creditFor":null or a benefit id}
 Category guidance: food delivery = dining; Walmart/Target/Costco = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
-creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "ihg_fb" (IHG food & beverage credit), "mar_air" (Marriott card airline credit). Otherwise null.
+creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "ihg_fb" (IHG food & beverage credit), "mar_air" (Marriott card airline credit), "ips_fb" / "ips_air" / "ips_insta" (IHG Premier Select food & beverage / airline / Instacart credits). Otherwise null.
 
 Then up to 5 short Chinese observations about habits worth questioning (subscriptions to cancel, avoidable fees, spend jumps). Do not discuss which card to use.
 
@@ -723,6 +742,7 @@ function contributions(R) {
     if (r.card === "hh" && d.getFullYear() === y) add(c.spend, "hhCal", r.amount);
     if (r.card === "aa" && cy("aa_20k", d)) add(c.spend, "aaYear", r.amount);
     if (r.card === "ihg" && cy("ihg_20k", d)) add(c.spend, "ihgYear", r.amount);
+    if (r.card === "ips" && d.getFullYear() === y) add(c.spend, "ipsCal", r.amount);
     if (r.card === "mar" && ["grocery", "gas", "dining"].includes(r.category) && d.getFullYear() === y) add(c.spend, "mar3x", r.amount);
     if (r.card === "dis" && CFG.discoverVariant === "cashback" && quarterKey(d) === q && discoverCats(q).includes(r.category)) add(c.spend, "dis5", r.amount);
   }
@@ -933,16 +953,17 @@ function renderSettings() {
     h("label", { class: "field" }, h("span", {}, "Boundless 3x 类别今年已用 $"), num("sp-mar3x", CFG.spend.mar3x, (x) => CFG.spend.mar3x = x)),
     h("label", { class: "field" }, h("span", {}, "Aspire 自然年消费 $"), num("sp-hh", CFG.spend.hhCal, (x) => CFG.spend.hhCal = x)),
     h("label", { class: "field" }, h("span", {}, "Citi AA 卡年度消费 $"), num("sp-aa", CFG.spend.aaYear, (x) => CFG.spend.aaYear = x)),
-    h("label", { class: "field" }, h("span", {}, "IHG 卡年度消费 $"), num("sp-ihg", CFG.spend.ihgYear, (x) => CFG.spend.ihgYear = x)))))) ;
+    h("label", { class: "field" }, h("span", {}, "IHG 卡年度消费 $"), num("sp-ihg", CFG.spend.ihgYear, (x) => CFG.spend.ihgYear = x)),
+    h("label", { class: "field" }, h("span", {}, "IHG Select 自然年消费 $"), num("sp-ips", CFG.spend.ipsCal, (x) => CFG.spend.ipsCal = x))))));
 
   v.append(h("span", { class: "note" }, "填开始导入 CSV 之前已经花掉的部分。之后保存的复盘会自动累加到这些数字上。"));
   v.append(h("section", {}, h("h2", {}, "Chase 卡号末四位"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
-    ["mar", "ihg", "fr"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
+    ["mar", "ihg", "ips", "fr"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
       h("input", { id: "l4-" + k, inputmode: "numeric", maxlength: "4", value: CFG.last4[k] || "", placeholder: "1234", onchange: (e) => { CFG.last4[k] = e.target.value.replace(/\D/g, "").slice(0, 4); saveCfg(); } })))),
     h("span", { class: "note" }, "三张 Chase 卡导出的 CSV 格式一样，靠文件名里的末四位区分。不填也行，导入时手动选。"))));
   const months = [["0", "未设置"], ...Array.from({ length: 12 }, (_, i) => [String(i + 1), `${i + 1} 月`])];
   v.append(h("section", {}, h("h2", {}, "开卡月份"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
-    ["hh", "ihg", "mar", "aa"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
+    ["hh", "ips", "ihg", "mar", "aa"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
       h("select", { id: "an-" + k, onchange: (e) => { CFG.anniv[k] = parseInt(e.target.value, 10); saveCfg(); renderAll(); } }, months.map(([val, t]) => h("option", { value: val, selected: String(CFG.anniv[k] || 0) === val }, t)))))),
     h("span", { class: "note" }, "用于卡年度类福利（免房券、$20k 消费奖励）的周期。"))));
 
@@ -951,7 +972,7 @@ function renderSettings() {
     h("span", { class: "note" }, "默认值是粗估，不是查来的数据：Chase UR 只有 Freedom 时按 1¢ 现金算；酒店分取常见估值区间的中间。按你自己的兑换习惯改。"))));
 
   v.append(h("section", {}, h("h2", {}, "一张免房券对你值多少（$）"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
-    [["hh", "Hilton 免房券"], ["ihg", "IHG 免房券"], ["mar", "Marriott 免房券"]].map(([k, l]) => h("label", { class: "field" }, h("span", {}, l), num("fn-" + k, CFG.fnValue[k], (x) => CFG.fnValue[k] = x)))),
+    [["hh", "Hilton 免房券"], ["ips", "IHG Select 免房券（≤60k）"], ["ihg", "IHG Premier 免房券（≤40k）"], ["mar", "Marriott 免房券"]].map(([k, l]) => h("label", { class: "field" }, h("span", {}, l), num("fn-" + k, CFG.fnValue[k], (x) => CFG.fnValue[k] = x)))),
     h("span", { class: "note" }, "用来算“冲消费目标”的额外回报。"))));
 }
 
