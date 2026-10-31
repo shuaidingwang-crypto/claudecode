@@ -134,6 +134,8 @@ textarea { width: 100%; min-height: 150px; font: 13px/1.45 var(--f-mono); resize
 .seg { display: inline-flex; background: var(--sunk); border-radius: 10px; padding: 3px; gap: 2px; }
 .seg button { border: 0; background: transparent; min-height: 32px; padding: 4px 14px; border-radius: 8px; font-size: 13px; color: var(--muted); }
 .seg button[aria-checked="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.hdr-ctrls { display: flex; align-items: center; gap: 8px; }
+.who-bar { flex-basis: 100%; display: flex; align-items: center; gap: 8px; }
 .tile-hint { font-size: 11.5px; color: var(--warn); font-weight: 600; }
 .edit { all: unset; cursor: pointer; font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); border-bottom: 1px dashed var(--accent); padding: 0 1px; }
 .edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -172,8 +174,9 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 
 <div class="wrap">
   <header class="top">
-    <h1>羊毛账本</h1>
-    <span class="sub" id="today"></span>
+    <h1 id="app-title">羊毛账本</h1>
+    <div class="hdr-ctrls"><span class="sub" id="today"></span><button type="button" id="lang-btn" class="small ghost"></button></div>
+    <div id="who-bar" class="who-bar"></div>
   </header>
   <div id="storeNote" class="status" hidden></div>
 
@@ -188,15 +191,342 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 <div id="sheet" hidden></div>
 <nav class="tabs" aria-label="主导航">
   <div class="in">
-    <button data-tab="use" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></svg>刷哪张</button>
-    <button data-tab="perks"><svg viewBox="0 0 24 24"><path d="M4 12h16v8H4zM2 8h20v4H2zM12 8v12M12 8c-2-4-6-4-6-1s6 1 6 1zm0 0c2-4 6-4 6-1s-6 1-6 1z"/></svg>羊毛</button>
-    <button data-tab="review"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></svg>账单复盘</button>
-    <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>设置</button>
+    <button data-tab="use" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></svg><span data-zh="刷哪张">刷哪张</span></button>
+    <button data-tab="perks"><svg viewBox="0 0 24 24"><path d="M4 12h16v8H4zM2 8h20v4H2zM12 8v12M12 8c-2-4-6-4-6-1s6 1 6 1zm0 0c2-4 6-4 6-1s-6 1-6 1z"/></svg><span data-zh="羊毛">羊毛</span></button>
+    <button data-tab="review"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></svg><span data-zh="账单复盘">账单复盘</span></button>
+    <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span data-zh="设置">设置</span></button>
   </div>
 </nav>
 
 <script>
 "use strict";
+// ---------------------------------------------------------------------------
+// Language: Chinese text is the key; EN maps it to English. "{}" marks an
+// interpolated value; "{0}", "{1}" pick values by position.
+// ---------------------------------------------------------------------------
+let LANG = "zh";
+try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
+const EN = {
+"现在只有 {} 一张卡可以刷，所有消费都用它。有附属卡的话，在「设置」里打开后这里会给出更好的选择。": "Only {} can be used right now, so put everything on it. Turn on any authorized-user cards in Settings to get better options here.",
+"今天过期": "expires today",
+"明天过期": "expires tomorrow",
+"{} 天后过期": "expires in {} days",
+"今天": "Today",
+"明天": "Tomorrow",
+"还剩 ${}，": "${} left, ",
+"（{}）": " ({})",
+"冲开卡礼（平时用 {}）": "Welcome bonus (normally {})",
+"{} 开卡礼进行中：": "{} welcome bonus in progress: ",
+"还差 ${}，{} 天内刷满。达标前大部分消费都先刷这张（开卡礼平摊下来每 $1 约值 {}¢）。": "${} to go within {} days. Put most spending on this card until then (the bonus works out to about {}¢ per $1).",
+
+"餐厅": "Dining",
+"超市 Grocery": "Groceries",
+"加油 / EV 充电": "Gas / EV charging",
+"其他一切": "Everything else",
+"AA 机票": "AA flights",
+"United 机票": "United flights",
+"其他航司机票": "Other airlines",
+"租车": "Car rental",
+"打车 / 公交": "Rideshare / transit",
+"Hilton 酒店": "Hilton hotels",
+"Marriott 酒店": "Marriott hotels",
+"IHG 酒店": "IHG hotels",
+"其他酒店 / OTA": "Other hotels / OTAs",
+"流媒体": "Streaming",
+"娱乐 / 演出 / 电影": "Entertainment / tickets / movies",
+"水电燃气网费": "Utilities",
+"药店": "Drugstores",
+"Red Cross 捐款": "Red Cross donations",
+"海外消费": "Spending abroad",
+"Discover 返现": "Discover cash back",
+"Chase 点数": "Chase points",
+"我": "Me",
+"老公": "Husband",
+"一起": "Together",
+"Hilton Resort 消费抵扣": "Hilton Resort credit",
+"在参与的 Hilton Resorts 直接付房费/杂费，每半年最多 $200。": "Pay room or incidentals directly at participating Hilton Resorts; up to $200 each half-year.",
+"航空消费抵扣": "Airline credit",
+"直接向航司或经 Amex Travel 的机票等消费，每季度最多 $50。": "Airline purchases made directly with the airline or via Amex Travel; up to $50 per quarter.",
+"CLEAR+ 会员抵扣": "CLEAR+ credit",
+"用 Aspire 付 CLEAR+ 年费，每自然年最多 $219（金额来自第三方评测）。": "Pay CLEAR+ with Aspire; up to $219 per calendar year (amount from third-party reviews).",
+"年度免房券 Free Night Reward": "Annual Free Night Reward",
+"续卡时发放；自然年消费满 $30k / $60k 各再得一张。": "Issued at renewal; one more each at $30k / $60k calendar-year spend.",
+"Waldorf / Conrad $100 房内消费": "Waldorf / Conrad $100 property credit",
+"用 Aspire 专属价预订 2 晚以上 Waldorf Astoria 或 Conrad 时可用。": "For 2+ night stays at Waldorf Astoria or Conrad booked at the Aspire rate.",
+"绑定 MileagePlus 后每年最多 $50。我记得是每半年 $25，请在 Chase 条款核对。": "Up to $50 a year after linking MileagePlus. I recall $25 per half-year; check Chase's terms.",
+"IHG 酒店餐饮抵扣": "IHG hotel dining credit",
+"2026/10 改版新增，每季度 $25（挂房账）。老卡生效日看 Chase 通知；未生效就标「不适用」。": "Added in the Oct 2026 refresh: $25 per quarter (charged to the room). Existing cards: see Chase's notice for the start date; mark \"Not for me\" until then.",
+"周年免房券（≤40k 分，可补分）": "Anniversary free night (≤40k pts, top-up allowed)",
+"续卡后发放，可用积分补差价。改版后上限据报道升到 50k（待核实）。": "Issued after renewal; top up with points. Cap reportedly rising to 50k after the refresh (unverified).",
+"$20k 消费奖励：$100 + 10k 分": "$20k spend bonus: $100 + 10k pts",
+"卡年度内消费满 $20k 且续卡后发放。": "Earned after $20k spend in the card year and renewal.",
+"积分兑换第 4 晚免费": "4th reward night free",
+"连住 4 晚以上积分房时自动生效。": "Applies automatically on award stays of 4+ nights.",
+"Global Entry / TSA PreCheck 抵扣": "Global Entry / TSA PreCheck credit",
+"每 4 年一次。": "Once every 4 years.",
+"每季度最多 $75，在 IHG 酒店餐饮消费（挂房账）。": "Up to $75 per quarter on dining at IHG hotels (charged to the room).",
+"航空抵扣 $200": "$200 airline credit",
+"每自然年单笔 $250 以上直接向航司购买，返 $200。据报道活动到 2027/12/31。": "Once per calendar year after a single $250+ purchase directly with an airline. Reportedly runs through 12/31/2027.",
+"Instacart 抵扣": "Instacart credit",
+"每月最多 $10（只有一个来源提到，待核实）。": "Up to $10 a month (only one source mentions it; unverified).",
+"来源说法不一：每年 $50，或每半年 $25。": "Sources differ: $50 a year, or $25 per half-year.",
+"周年免房券（≤60k 分）": "Anniversary free night (≤60k pts)",
+"每个开卡周年后发放。": "Issued after each account anniversary.",
+"自然年 $15k：20k 分 + 5 晚房晚": "$15k calendar year: 20k pts + 5 elite nights",
+"另外每消费 $5k 得 2 晚房晚积分。": "Plus 2 elite night credits per $5k spent.",
+"自然年 $25k：Diamond 到次年底": "$25k calendar year: Diamond through next year",
+"默认送 Platinum + 20 晚房晚积分。": "Comes with Platinum + 20 elite night credits by default.",
+"每月两笔 $10（不能合在一单用），需用这张卡在 Instacart 直接付款。到 2027/12/31。": "Two $10 credits a month (can't combine on one order); pay Instacart directly with this card. Through 12/31/2027.",
+"打车抵扣": "Rideshare credit",
+"需登记。每月 $12，12 月是 $18，全年 $150。到 2027/12/31。": "Enrollment required. $12 a month, $18 in December, $150 a year. Through 12/31/2027.",
+"Renowned Hotels & Resorts 抵扣": "Renowned Hotels & Resorts credit",
+"通过 United 的 Renowned Hotels 预付酒店，每自然年最多 $200。到 2027/12/31。": "Prepaid stays booked through United's Renowned Hotels; up to $200 per calendar year. Through 12/31/2027.",
+"United Club 贵宾室会员 · 2 件免费托运 · 每年 1,500 PQP（United 升级积分）· Global Entry 抵扣": "United Club lounge membership · 2 free checked bags · 1,500 PQP a year (United status points) · Global Entry credit",
+"Club 会员可带 2 位客人；托运行李限本人和 1 位同行。": "Club membership includes 2 guests; free bags for you and 1 companion.",
+"积分房第 4 晚免费 · 买分 7 折": "4th award night free · 30% off buying points",
+"自动生效。": "Applies automatically.",
+"周年免房券（≤35k 分）": "Anniversary free night (≤35k pts)",
+"续卡后发放，可补最多 15k 分。": "Issued after renewal; top up with up to 15k points.",
+"航空消费抵扣（限时）": "Airline credit (limited time)",
+"据报道：航空消费满 $500 后每半年返最多 $50，活动到 2027/6/30，可能需登记或为定向。": "Reported: up to $50 back per half-year after $500 in airline spend, through 6/30/2027; may need enrollment or be targeted.",
+"15 晚房晚积分 + Silver": "15 elite night credits + Silver",
+"自动入账。": "Posted automatically.",
+"$20k 消费换 AA 机票折扣": "$20k spend for an AA flight discount",
+"卡年度消费满 $20k 且续卡得 $125；2027/1/24 后达标的变为 $150。": "$20k in the card year plus renewal earns $125; $150 if reached after 1/24/2027.",
+"机上消费 25% 折扣 → $100 年度抵扣": "25% inflight discount → $100 annual credit",
+"2027/1/24 起，25% 折扣换成每年最多 $100 机上餐饮/Wi-Fi 抵扣，另送 Walmart+。": "From 1/24/2027 the 25% discount becomes up to $100 a year for inflight food/Wi-Fi, plus Walmart+.",
+"国内航段首件托运行李免费": "First checked bag free on domestic flights",
+"本人及同行最多 4 人，需同一订单。": "For you and up to 4 companions on the same reservation.",
+"2027/1/24 改版后餐厅 2x 是否保留未确认": "Unconfirmed whether 2x dining stays after the 1/24/2027 refresh",
+"餐厅 2x（凭记忆，未从 Citi 官网核实）": "2x dining (from memory, not verified on Citi's site)",
+"2027/1/24 起新增": "New from 1/24/2027",
+"卡本身 6x；会员基础积分与卡无关，未计入": "Card earns 6x; base program points not counted",
+"3x 仅限每年前 $6,000（已用 ${}）": "3x only on the first $6,000 a year (used ${})",
+"3x 年度额度已用完": "3x annual cap used up",
+"需直接向航司或 Amex Travel 订": "Book directly with the airline or Amex Travel",
+"需直接向租车公司订": "Book directly with the rental company",
+"7x 仅限美国餐厅": "7x is US restaurants only",
+"仅美国餐厅": "US restaurants only",
+"卡本身 10x；会员积分另算": "Card earns 10x; program points extra",
+"5x 广义旅行仅到 2026/12/31": "5x on general travel only through 12/31/2026",
+"2027 新类别（老卡生效日待 Chase 通知）": "New 2027 category (start date for existing cards pending Chase notice)",
+"卡本身 5x；会员基础里程另算": "Card earns 5x; base miles extra",
+"卡本身 12x；会员积分另算": "Card earns 12x; program points extra",
+"2% 加油+餐厅每季前 $1,000（凭记忆）": "2% gas + dining on the first $1,000 a quarter (from memory)",
+"本季 5% 类别，但你还没激活（激活前的消费不补）": "5% category this quarter, but not activated yet (spend before activation doesn't count)",
+"本季 $1,500 额度已用完": "Quarterly $1,500 cap used up",
+"本季 5%，季度 $1,500 封顶（已用 ${}）": "5% this quarter, capped at $1,500 (used ${})",
+"首年 Cashback Match ×2": "First-year Cashback Match ×2",
+"本季 5% 类别，但你还没激活": "5% category this quarter, but not activated yet",
+"本季 5% 类别，季度 $1,500 封顶（已用 ${}）": "5% this quarter, capped at $1,500 (used ${})",
+"的 ": "'s ",
+"3% 海外交易手续费": "3% foreign transaction fee",
+"{}/{} 月": "{}/{}",
+"下": "2",
+"上": "1",
+"{}半年 {}": "H{0} {1}",
+"{} 年": "{}",
+"{}（未设开卡月，按自然年）": "{} (open month not set; using calendar year)",
+"卡年度 {}/{} 起": "Card year from {}/{}",
+"保存失败：{}。刷新后重试。": "Save failed: {}. Refresh and try again.",
+"预览模式：改动只保存在这个浏览器里，不会同步。": "Preview mode: changes stay in this browser and won't sync.",
+"修改{}": "Edit {}",
+"{} 开卡礼还差 ${}": "{} welcome bonus: ${} to go",
+"{} 前要刷满 ${}，还剩 {} 天。达标前日常消费优先刷这张。": "Spend ${1} by {0}, {2} days left. Put everyday spending on this card until you hit it.",
+"已达标": "Done",
+"激活 {} {} 5%": "Activate {} {} 5%",
+"、": ", ",
+"{}。激活前的消费不补。": "{}. Spend before activation doesn't count.",
+"我已激活": "I activated it",
+"还剩 ${}，{} 天后过期": "${} left, expires in {} days",
+"用完了": "Used it all",
+"不适用": "Not for me",
+"{}{} 免房券": "{}{} free night",
+"{} 天后过期（{}）": "Expires in {} days ({})",
+"已订房": "Booked",
+"金额": "Amount",
+"这次用了多少": "How much did you use",
+"记下": "Save",
+"取消": "Cancel",
+"记一笔": "Log use",
+"Aspire 自然年 $30k → 第 2 张免房券": "Aspire $30k calendar year → 2nd free night",
+"Aspire 自然年 $60k → 第 3 张免房券": "Aspire $60k calendar year → 3rd free night",
+"Citi AA 卡年度 $20k → $125 机票折扣": "Citi AA $20k card year → $125 flight discount",
+"IHG Select 自然年 $15k → 20k 分": "IHG Select $15k calendar year → 20k pts",
+"IHG Select 自然年 $25k → Diamond": "IHG Select $25k calendar year → Diamond",
+"IHG Premier 卡年度 $20k → $100 + 10k 分": "IHG Premier $20k card year → $100 + 10k pts",
+"待核实": "Unverified",
+"已花 ": "Spent ",
+"已花金额": "Amount spent",
+" · 已达标": " · reached",
+" · 达标后一般消费 ≈ {}%": " · once reached, everyday spend ≈ {}%",
+"冲开卡礼": "Welcome bonus",
+"激活 {} 可得 5%": "Activate {} for 5%",
+"今天刷哪张": "Which card today",
+"在海外": "Abroad",
+"待办 {} ↓": "{} to-dos ↓",
+"百分比是每花 $100 大约值回多少钱（积分按估值折成美元）。点一格看所有卡怎么比。": "The percentage is roughly how much you get back per $100 (points converted at estimated values). Tap a tile to compare every card.",
+"待办": "To-dos",
+"{} 项": "{}",
+"收起": "Show less",
+"再看 {} 项": "Show {} more",
+"消费目标": "Spend goals",
+"导入账单后自动累加；点金额可以直接改。": "Imported statements add up automatically; tap an amount to edit it.",
+"{} 开卡礼": "{} welcome bonus",
+"已完成": "Complete",
+"还剩 {} 天": "{} days left",
+"已刷 ": "Spent ",
+"开卡礼已刷": "Welcome bonus spent",
+"开卡礼要求": "Welcome bonus requirement",
+" · 奖励 ": " · bonus ",
+"开卡礼积分": "Welcome bonus points",
+" 分": " pts",
+" · 截止 ": " · by ",
+"开卡礼截止日": "Welcome bonus deadline",
+"达标前每刷 $1 额外约值 {}¢，所以推荐会优先这张。": "Until you hit it, each $1 is worth about {}¢ extra, so this card is recommended first.",
+"已拿到开卡礼": "Got the bonus",
+"Discover {} 5% 已激活": "Discover {} 5% activated",
+"本季已用 ": "Used this quarter ",
+"Discover 5% 已用": "Discover 5% used",
+"Freedom {} 5% 已激活": "Freedom {} 5% activated",
+"Freedom 5% 已用": "Freedom 5% used",
+"Boundless 3x 今年已用 ": "Boundless 3x used this year ",
+"Boundless 3x 已用": "Boundless 3x used",
+"{} 每分价值": "{} value per point",
+" · 冲开卡礼：每 $1 另值约 {}¢": " · welcome bonus: about {}¢ extra per $1",
+" · 海外": " · abroad",
+"关闭": "Close",
+"例：6x × 0.6¢ = 每 $1 得 6 分、每分约 0.6 美分，合计 3.6%。": "Example: 6x × 0.6¢ = 6 points per $1, about 0.6 cents each, so 3.6%.",
+"点每分价值可以改，改了会影响所有类别的排名。": "Tap a point value to edit it; it changes the ranking for every category.",
+"2027/1/24 起续卡年费 $99 → $150，同时加 $100 机上抵扣、Walmart+、$150 机票折扣。": "From 1/24/2027 the renewal fee goes $99 → $150, adding a $100 inflight credit, Walmart+ and a $150 flight discount.",
+"2027 年续卡时年费 $99 → $150；非 IHG 的广义旅行 5x 只到 2026/12/31。": "At 2027 renewal the fee goes $99 → $150; 5x on non-IHG travel ends 12/31/2026.",
+"{} 已用抵扣": "{} credits used",
+"年费合计": "Annual fees",
+"差额": "Difference",
+"抵扣只算现金类，免房券价值不计入。导入账单时到账的抵扣会自动勾掉。": "Only cash credits count; free nights aren't included. Credits that post on an imported statement are checked off automatically.",
+"本季类别未设置": "No categories set this quarter",
+"{} 5%：{}": "{} 5%: {}",
+"已激活": "Activated",
+"已用 ": "Used ",
+"5% 已用": "5% used",
+"{}：{}": "{}: {}",
+"无海外手续费，但海外受理率低。": "No foreign transaction fee, but limited acceptance abroad.",
+"3% 海外交易手续费；Chase Travel 订旅行 5%（未计入）。": "3% foreign transaction fee; 5% on travel via Chase Travel (not counted).",
+"年费变化": "Fee change",
+"其他权益": "Other benefits",
+"{} 项待用": "{} to use",
+"${}/年": "${}/yr",
+"无年费": "No annual fee",
+"条款核对日期 {}。标“待核实”的条目来自记忆或来源冲突，以发卡行为准。": "Terms checked {}. Items marked \"Unverified\" come from memory or conflicting sources; the issuer's terms win.",
+"已用完": "Used up",
+"{} 天": "{} days",
+"{} 已用": "{} used",
+"恢复提醒": "Remind me again",
+"到期日": "Expires",
+"撤销已用": "Undo",
+"这张券对你值 ": "This night is worth ",
+"免房券价值": "Free night value",
+"开卡月份": "Card open month",
+"选开卡月份…": "Pick open month…",
+"{} 月": "Month {}",
+"周期要按开卡月份算：": "Periods follow the card's open month: ",
+"没有 CSV 也可以：从网银复制交易明细粘贴到这里。\n例：\n10/03  WHOLE FOODS MARKET #123   86.42\n10/05  UBER *TRIP                 23.10": "No CSV? Paste transactions copied from online banking here.\nExample:\n10/03  WHOLE FOODS MARKET #123   86.42\n10/05  UBER *TRIP                 23.10",
+"粘贴的明细": "Pasted transactions",
+"加入列表": "Add to list",
+"月度账单复盘": "Monthly statement review",
+"把各家导出的 CSV 一次全选进来。保存后，消费进度和到账的抵扣会自动更新。": "Select every issuer's CSV at once. Saving updates spend progress and posted credits automatically.",
+"选择 CSV 文件（可多选）": "Choose CSV files (multiple OK)",
+"怎么从网银导出 CSV？": "How do I export a CSV?",
+"Chase：登录 → 点卡 → 交易列表旁的下载图标 → 文件类型选 CSV（默认是 QFX）。几张 Chase 卡分别导出。": "Chase: sign in → open the card → download icon next to transactions → choose CSV (default is QFX). Export each Chase card separately.",
+"Amex：Statements & Activity → 选日期范围 → Download → CSV。": "Amex: Statements & Activity → pick a date range → Download → CSV.",
+"Citi：卡的交易页 → 表格旁的 Download / Export → CSV。": "Citi: card's transactions page → Download / Export next to the table → CSV.",
+"Discover：Activity → 下载交易（不是 PDF 账单）→ CSV。": "Discover: Activity → download transactions (not the PDF statement) → CSV.",
+"各家菜单经常改版，以上按第三方教程整理，找不到时搜「下载交易」或 Download。": "Menus change often; these steps come from third-party guides. If you can't find it, look for \"Download\".",
+"或粘贴明细": "Or paste transactions",
+"哪张卡": "Which card",
+"选择卡…": "Choose card…",
+"月份": "Month",
+"移除": "Remove",
+"{} 行交易": "{} transactions",
+"。没认出是哪张卡，请选一下。": ". Couldn't tell which card this is; please pick one.",
+"让 Claude 分析 {} 份账单": "Have Claude review {} statements",
+"分析 {} 份账单（本地关键词）": "Review {} statements (keyword matching)",
+"待分析": "Ready to review",
+"未连接 Claude，用关键词粗分类。": "Claude isn't connected; using rough keyword categories.",
+"Claude 正在分类第 {}/{} 份（{}）…": "Claude is categorizing {} of {} ({})…",
+"识别出 {} 笔消费、{} 笔福利抵扣。分类不对的可以在下面改，确认后点“全部保存”。": "Found {} purchases and {} benefit credits. Fix any wrong categories below, then tap \"Save all\".",
+"保存中…": "Saving…",
+"已保存，进度和抵扣已更新。": "Saved. Progress and credits updated.",
+"全部保存并更新进度": "Save all and update progress",
+"同一张卡同一个月重复保存会覆盖，不会重复累加。": "Saving the same card and month again replaces it instead of adding twice.",
+"混合": "Mixed",
+"消费": "Spend",
+"实际回报": "Earned",
+"最优可得": "Best possible",
+"少赚了": "Missed",
+"刷卡效率 {}%。按你设定的每分价值折算成美元。": "Card-choice efficiency {}%. Converted to dollars at your point values.",
+"按类别": "By category",
+"值得问一句的消费": "Worth a second look",
+"可优化：用错卡 {} 笔": "Could optimize: {} on the wrong card",
+"这个月每笔都刷对了卡。": "Every purchase this month was on the right card.",
+"合理：{} 笔": "Fine: {}",
+"费用": "Fee",
+"利息": "Interest",
+"订阅": "Subscription",
+"疑似重复": "Possible duplicate",
+"异常": "Unusual",
+"改分类": "Change category",
+"。": ". ",
+"应该刷 {}（{}），少赚 ${}{}": "Should use {} ({}); missed ${}{}",
+"(未知商户)": "(unknown merchant)",
+"海外": "Abroad",
+"历史复盘": "Past reviews",
+"还没有保存的复盘。每月账单出来后把 CSV 选进来分析，再点“全部保存并更新进度”。": "No saved reviews yet. When statements come in, select the CSVs, review, then tap \"Save all and update progress\".",
+"效率 {}%": "Efficiency {}%",
+"消费 ${} · 回报 ${} · 少赚 ${}": "Spend ${} · earned ${} · missed ${}",
+"这里只放很少改的设置。5% 激活、额度、消费进度、每分价值都能在「刷哪张」和「羊毛」里点数字直接改。": "Only rarely changed settings live here. 5% activation, caps, spend progress and point values can all be edited in place on \"Which card\" and \"Perks\".",
+"附属卡：谁能刷哪张": "Authorized users: who can use which card",
+"「刷哪张」顶部选「我 / 老公 / 一起」时，只在这个人能刷的卡里推荐。有附属卡的在这里打开。": "When you pick Me / Husband / Together at the top, recommendations only use cards that person can swipe. Turn on any authorized-user cards here.",
+"{}（老公的）· 我有附属卡": "{} (husband's) · I'm an authorized user",
+"{} · 老公有附属卡": "{} · husband is an authorized user",
+"Discover it Cash Back（5% 轮换 + 1%）": "Discover it Cash Back (rotating 5% + 1%)",
+"Discover it Miles（1.5x）": "Discover it Miles (1.5x)",
+"Discover it Chrome（2% 加油/餐厅）": "Discover it Chrome (2% gas/dining)",
+"开卡第一年（Cashback Match：第一年返现翻倍）": "First card year (Cashback Match doubles first-year cash back)",
+"{} 5% 类别": "{} 5% categories",
+"2026 Q4 已预设为餐厅、娱乐、水电网费。每季 Discover 公布新类别后在这里改。": "Q4 2026 is preset to dining, entertainment and utilities. Update when Discover announces each quarter.",
+"Freedom Unlimited（1.5% + 3% 餐厅/药店）": "Freedom Unlimited (1.5% + 3% dining/drugstores)",
+"Freedom Flex（5% 轮换 + 3% 餐厅/药店）": "Freedom Flex (rotating 5% + 3% dining/drugstores)",
+"Chase Freedom（老款，5% 轮换 + 1%）": "Chase Freedom (legacy, rotating 5% + 1%)",
+"三款都有 3% 海外交易手续费。": "All three charge a 3% foreign transaction fee.",
+"Chase 卡号末四位": "Chase card last 4",
+"几张 Chase 卡导出的 CSV 格式一样，靠文件名里的末四位区分。第一次导入时选一下卡，之后会自动记住。": "Chase cards export identical CSVs, so they're matched by the last 4 digits in the file name. Pick the card on the first import and it's remembered.",
+"未设置": "Not set",
+"用于卡年度类福利（免房券、$20k 消费奖励）的周期。导入的账单里出现年费时会自动填上（年费一般在开卡周年那期账单收取，可能差一个月）。": "Sets the period for card-year benefits (free nights, $20k spend bonuses). Filled in automatically when an imported statement shows an annual fee (usually charged on the anniversary statement; may be off by a month).",
+"每分值多少（美分）": "Value per point (cents)",
+"默认值：Discover 和 Chase UR（只有 Freedom U，不能转点）按 1¢ 现金；AA、Hilton、IHG、Marriott 取 The Points Guy 2026 年 10 月估值。NerdWallet 的数不同（AA 1.7、Hilton 0.35、IHG 0.5–0.6、Marriott 0.7–0.8），按你自己的兑换习惯改。": "Defaults: Discover and Chase points (Freedom U only, no transfers) at 1¢ cash; AA, Hilton, IHG and Marriott use The Points Guy's Oct 2026 values. NerdWallet differs (AA 1.7, Hilton 0.35, IHG 0.5–0.6, Marriott 0.7–0.8); adjust to how you redeem.",
+"一张免房券对你值多少（$）": "What a free night is worth to you ($)",
+"Hilton 免房券": "Hilton free night",
+"IHG Select 免房券（≤60k）": "IHG Select free night (≤60k)",
+"IHG Premier 免房券（≤40k）": "IHG Premier free night (≤40k)",
+"Marriott 免房券": "Marriott free night",
+"IHG 和 Marriott = 券面上限 × 每分价值（上限值，订便宜酒店就用不满）。Hilton 券不设上限，各评测估 $200–$521，取 $300。用来算“冲消费目标”的额外回报。": "IHG and Marriott = cap × point value (an upper bound; cheaper hotels won't use it all). Hilton certificates have no cap; reviews estimate $200–$521, using $300. Used for the extra return on spend goals.",
+"看谁的：": "Showing:",
+"看谁的卡": "Whose cards",
+"刷哪张": "Which card",
+"羊毛": "Perks",
+"账单复盘": "Review",
+"设置": "Settings",
+"羊毛账本": "Perk Ledger"
+};
+function T(strs, ...vals) {
+  if (typeof strs === "string") return LANG === "en" ? (EN[strs] ?? strs) : strs;
+  const key = strs.join("{}");
+  const tpl = LANG === "en" ? (EN[key] ?? key) : key;
+  let i = 0;
+  return tpl.replace(/\{(\d*)\}/g, (_, n) => String(vals[n === "" ? i++ : +n] ?? ""));
+}
+
 // ---------------------------------------------------------------------------
 // Card rules. Terms checked 2026-10-29 against public reviews; items marked
 // verify:true are from memory or conflicting sources — confirm with issuer.
@@ -213,18 +543,55 @@ const CARDS = {
   aa:  { name: "Citi AAdvantage Platinum Select", short: "Citi AA", cur: "AA", fee: 99, ftf: 0, color: "var(--c-aa)" },
   ihg: { name: "IHG One Rewards Premier", short: "IHG Premier", cur: "IHG", fee: 99, ftf: 0, color: "var(--c-ihg)" },
   ips: { name: "IHG One Rewards Premier Select", short: "IHG Select", cur: "IHG", fee: 350, ftf: 0, color: "var(--c-ips)" },
-  ua:  { name: "United Club Card", short: "United Club", cur: "UA", fee: 695, ftf: 0, color: "var(--c-ua)", owner: "老公" },
+  ua:  { name: "United Club Card", short: "United Club", cur: "UA", fee: 695, ftf: 0, color: "var(--c-ua)", owner: "spouse" },
   mar: { name: "Marriott Bonvoy Boundless", short: "Boundless", cur: "MAR", fee: 95, ftf: 0, color: "var(--c-mar)" },
 };
-const CUR_LABEL = { UA: "United miles", DIS: "Discover 返现", UR: "Chase UR", HH: "Hilton", AA: "AA miles", IHG: "IHG", MAR: "Marriott" };
 
-const CATS = [
-  ["dining", "餐厅"], ["grocery", "超市 Grocery"], ["gas", "加油 / EV 充电"], ["other", "其他一切"],
-  ["flight_aa", "AA 机票"], ["flight_ua", "United 机票"], ["flight_other", "其他航司机票"], ["car_rental", "租车"], ["transit", "打车 / 公交"],
-  ["hotel_hilton", "Hilton 酒店"], ["hotel_marriott", "Marriott 酒店"], ["hotel_ihg", "IHG 酒店"], ["hotel_other", "其他酒店 / OTA"],
-  ["streaming", "流媒体"], ["entertainment", "娱乐 / 演出 / 电影"], ["utilities", "水电燃气网费"], ["drugstore", "药店"], ["red_cross", "Red Cross 捐款"], ["foreign", "海外消费"],
-];
-const CAT_LABEL = Object.fromEntries(CATS);
+// User-facing text that lives in data; rebuilt when the language changes.
+let CATS, CAT_LABEL, CUR_LABEL, WHO_LABEL, BENEFITS;
+function defineText() {
+  CATS = [
+    ["dining", T("餐厅")], ["grocery", T("超市 Grocery")], ["gas", T("加油 / EV 充电")], ["other", T("其他一切")],
+    ["flight_aa", T("AA 机票")], ["flight_ua", T("United 机票")], ["flight_other", T("其他航司机票")], ["car_rental", T("租车")], ["transit", T("打车 / 公交")],
+    ["hotel_hilton", T("Hilton 酒店")], ["hotel_marriott", T("Marriott 酒店")], ["hotel_ihg", T("IHG 酒店")], ["hotel_other", T("其他酒店 / OTA")],
+    ["streaming", T("流媒体")], ["entertainment", T("娱乐 / 演出 / 电影")], ["utilities", T("水电燃气网费")], ["drugstore", T("药店")], ["red_cross", T("Red Cross 捐款")], ["foreign", T("海外消费")],
+  ];
+    CAT_LABEL = Object.fromEntries(CATS);
+  CUR_LABEL = { UA: "United miles", DIS: T("Discover 返现"), UR: T("Chase 点数"), HH: "Hilton", AA: "AA miles", IHG: "IHG", MAR: "Marriott" };
+  WHO_LABEL = { me: T("我"), spouse: T("老公"), both: T("一起") };
+  BENEFITS = [
+    { id: "hh_resort", card: "hh", title: T("Hilton Resort 消费抵扣"), amt: 200, period: "half", how: T("在参与的 Hilton Resorts 直接付房费/杂费，每半年最多 $200。") },
+    { id: "hh_flight", card: "hh", title: T("航空消费抵扣"), amt: 50, period: "quarter", how: T("直接向航司或经 Amex Travel 的机票等消费，每季度最多 $50。") },
+    { id: "hh_clear", card: "hh", title: T("CLEAR+ 会员抵扣"), amt: 219, period: "year", how: T("用 Aspire 付 CLEAR+ 年费，每自然年最多 $219（金额来自第三方评测）。") },
+    { id: "hh_fnr", card: "hh", title: T("年度免房券 Free Night Reward"), amt: 0, period: "cardyear", cert: true, fn: "hh", how: T("续卡时发放；自然年消费满 $30k / $60k 各再得一张。") },
+    { id: "hh_conrad", card: "hh", title: T("Waldorf / Conrad $100 房内消费"), period: "info", how: T("用 Aspire 专属价预订 2 晚以上 Waldorf Astoria 或 Conrad 时可用。") },
+    { id: "ihg_ub", card: "ihg", title: "United TravelBank Cash", amt: 50, period: "year", verify: true, how: T("绑定 MileagePlus 后每年最多 $50。我记得是每半年 $25，请在 Chase 条款核对。") },
+    { id: "ihg_fb", card: "ihg", title: T("IHG 酒店餐饮抵扣"), amt: 25, period: "quarter", verify: true, how: T("2026/10 改版新增，每季度 $25（挂房账）。老卡生效日看 Chase 通知；未生效就标「不适用」。") },
+    { id: "ihg_fn", card: "ihg", title: T("周年免房券（≤40k 分，可补分）"), amt: 0, period: "cardyear", cert: true, fn: "ihg", how: T("续卡后发放，可用积分补差价。改版后上限据报道升到 50k（待核实）。") },
+    { id: "ihg_20k", card: "ihg", title: T("$20k 消费奖励：$100 + 10k 分"), amt: 0, period: "cardyear", goal: { key: "ihgYear", at: 20000 }, how: T("卡年度内消费满 $20k 且续卡后发放。") },
+    { id: "ihg_4th", card: "ihg", title: T("积分兑换第 4 晚免费"), period: "info", how: T("连住 4 晚以上积分房时自动生效。") },
+    { id: "ihg_ge", card: "ihg", title: T("Global Entry / TSA PreCheck 抵扣"), period: "info", how: T("每 4 年一次。") },
+    { id: "ips_fb", card: "ips", title: T("IHG 酒店餐饮抵扣"), amt: 75, period: "quarter", how: T("每季度最多 $75，在 IHG 酒店餐饮消费（挂房账）。") },
+    { id: "ips_air", card: "ips", title: T("航空抵扣 $200"), amt: 200, period: "year", how: T("每自然年单笔 $250 以上直接向航司购买，返 $200。据报道活动到 2027/12/31。") },
+    { id: "ips_insta", card: "ips", title: T("Instacart 抵扣"), amt: 10, period: "month", verify: true, how: T("每月最多 $10（只有一个来源提到，待核实）。") },
+    { id: "ips_ub", card: "ips", title: "United TravelBank Cash", amt: 50, period: "year", verify: true, how: T("来源说法不一：每年 $50，或每半年 $25。") },
+    { id: "ips_fn", card: "ips", title: T("周年免房券（≤60k 分）"), amt: 0, period: "cardyear", cert: true, fn: "ips", how: T("每个开卡周年后发放。") },
+    { id: "ips_15k", card: "ips", title: T("自然年 $15k：20k 分 + 5 晚房晚"), amt: 0, period: "year", goal: { key: "ipsCal", at: 15000 }, verify: true, how: T("另外每消费 $5k 得 2 晚房晚积分。") },
+    { id: "ips_25k", card: "ips", title: T("自然年 $25k：Diamond 到次年底"), amt: 0, period: "year", goal: { key: "ipsCal", at: 25000 }, how: T("默认送 Platinum + 20 晚房晚积分。") },
+    { id: "ua_insta", card: "ua", title: T("Instacart 抵扣"), amt: 20, period: "month", how: T("每月两笔 $10（不能合在一单用），需用这张卡在 Instacart 直接付款。到 2027/12/31。") },
+    { id: "ua_ride", card: "ua", title: T("打车抵扣"), amt: 12, period: "month", how: T("需登记。每月 $12，12 月是 $18，全年 $150。到 2027/12/31。") },
+    { id: "ua_renowned", card: "ua", title: T("Renowned Hotels & Resorts 抵扣"), amt: 200, period: "year", how: T("通过 United 的 Renowned Hotels 预付酒店，每自然年最多 $200。到 2027/12/31。") },
+    { id: "ua_info", card: "ua", title: T("United Club 贵宾室会员 · 2 件免费托运 · 每年 1,500 PQP（United 升级积分）· Global Entry 抵扣"), period: "info", how: T("Club 会员可带 2 位客人；托运行李限本人和 1 位同行。") },
+    { id: "ips_info", card: "ips", title: T("积分房第 4 晚免费 · 买分 7 折"), period: "info", how: T("自动生效。") },
+    { id: "mar_fna", card: "mar", title: T("周年免房券（≤35k 分）"), amt: 0, period: "cardyear", cert: true, fn: "mar", how: T("续卡后发放，可补最多 15k 分。") },
+    { id: "mar_air", card: "mar", title: T("航空消费抵扣（限时）"), amt: 50, period: "half", verify: true, how: T("据报道：航空消费满 $500 后每半年返最多 $50，活动到 2027/6/30，可能需登记或为定向。") },
+    { id: "mar_enc", card: "mar", title: T("15 晚房晚积分 + Silver"), period: "info", how: T("自动入账。") },
+    { id: "aa_20k", card: "aa", title: T("$20k 消费换 AA 机票折扣"), amt: 0, period: "cardyear", goal: { key: "aaYear", at: 20000 }, how: T("卡年度消费满 $20k 且续卡得 $125；2027/1/24 后达标的变为 $150。") },
+    { id: "aa_inflight", card: "aa", title: T("机上消费 25% 折扣 → $100 年度抵扣"), period: "info", how: T("2027/1/24 起，25% 折扣换成每年最多 $100 机上餐饮/Wi-Fi 抵扣，另送 Walmart+。") },
+    { id: "aa_bag", card: "aa", title: T("国内航段首件托运行李免费"), period: "info", how: T("本人及同行最多 4 人，需同一订单。") },
+  ];
+}
+defineText();
 const FREEDOM_Q_DEFAULT = { "2026Q4": ["grocery", "dining", "red_cross"] };
 const FREEDOM_ACTIVATE_BY = { "2026Q4": "2026-12-14" };
 const DISCOVER_Q_DEFAULT = { "2026Q4": ["dining", "entertainment", "utilities"] };
@@ -235,6 +602,7 @@ const DEFAULT_CONFIG = {
   discoverQ: {},                       // overrides { "2026Q4": [...] }
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
+  subs: { ips: { target: 5000, bonus: 200000, by: "2027-01-29", opened: "2026-10-29", done: false } }, // welcome offers being chased
   who: "me",                           // whose wallet to recommend from: me | spouse | both
   canUse: { me: [], spouse: [] },      // authorized-user cards: his cards I can use / my cards he can use
   last4: { mar: "", ihg: "", ips: "", fr: "", ua: "" },  // Chase card last 4 digits, for CSV matching
@@ -242,7 +610,7 @@ const DEFAULT_CONFIG = {
   anniv: { aa: 0, mar: 0, hh: 0, ihg: 0, ips: 0 },                   // card-open month 1-12, 0 = unset
   freedomQ: {},                        // overrides { "2026Q4": [...] }
   frActivated: {},                     // { "2026Q4": true }
-  spend: { dis5: 0, disChrome: 0, mar3x: 0, fr5: 0, hhCal: 0, aaYear: 0, ihgYear: 0, ipsCal: 0, marYear: 0 },
+  spend: { subIps: 0, dis5: 0, disChrome: 0, mar3x: 0, fr5: 0, hhCal: 0, aaYear: 0, ihgYear: 0, ipsCal: 0, marYear: 0 },
   fnValue: { hh: 300, ihg: 240, ips: 360, mar: 263 },                  // $; capped certs = cap × TPG value
 };
 
@@ -258,35 +626,35 @@ function earn(card, cat, d, opts = {}) {
     const after = d >= AA_REFRESH;
     if (cat === "flight_aa") m = 2;
     else if (cat === "gas") m = 2;
-    else if (cat === "dining") { m = 2; verify = true; n.push(after ? "2027/1/24 改版后餐厅 2x 是否保留未确认" : "餐厅 2x（凭记忆，未从 Citi 官网核实）"); }
-    else if (after && ["transit", "streaming", "car_rental"].includes(cat)) { m = 2; n.push("2027/1/24 起新增"); }
+    else if (cat === "dining") { m = 2; verify = true; n.push(after ? T("2027/1/24 改版后餐厅 2x 是否保留未确认") : T("餐厅 2x（凭记忆，未从 Citi 官网核实）")); }
+    else if (after && ["transit", "streaming", "car_rental"].includes(cat)) { m = 2; n.push(T("2027/1/24 起新增")); }
   } else if (card === "mar") {
-    if (cat === "hotel_marriott") { m = 6; n.push("卡本身 6x；会员基础积分与卡无关，未计入"); }
+    if (cat === "hotel_marriott") { m = 6; n.push(T("卡本身 6x；会员基础积分与卡无关，未计入")); }
     else if (["grocery", "gas", "dining"].includes(cat)) {
-      if ((S.spend.mar3x || 0) < 6000) { m = 3; n.push(`3x 仅限每年前 $6,000（已用 $${fmt0(S.spend.mar3x)}）`); }
-      else { m = 2; n.push("3x 年度额度已用完"); }
+      if ((S.spend.mar3x || 0) < 6000) { m = 3; n.push(T`3x 仅限每年前 $6,000（已用 $${fmt0(S.spend.mar3x)}）`); }
+      else { m = 2; n.push(T("3x 年度额度已用完")); }
     } else m = 2;
   } else if (card === "hh") {
     if (cat === "hotel_hilton") m = 14;
-    else if (cat === "flight_aa" || cat === "flight_other") { m = 7; n.push("需直接向航司或 Amex Travel 订"); }
-    else if (cat === "car_rental") { m = 7; n.push("需直接向租车公司订"); }
-    else if (cat === "dining") { if (opts.foreign) { m = 3; n.push("7x 仅限美国餐厅"); } else { m = 7; n.push("仅美国餐厅"); } }
+    else if (cat === "flight_aa" || cat === "flight_other") { m = 7; n.push(T("需直接向航司或 Amex Travel 订")); }
+    else if (cat === "car_rental") { m = 7; n.push(T("需直接向租车公司订")); }
+    else if (cat === "dining") { if (opts.foreign) { m = 3; n.push(T("7x 仅限美国餐厅")); } else { m = 7; n.push(T("仅美国餐厅")); } }
     else m = 3;
   } else if (card === "ihg") {
-    if (cat === "hotel_ihg") { m = 10; n.push("卡本身 10x；会员积分另算"); }
+    if (cat === "hotel_ihg") { m = 10; n.push(T("卡本身 10x；会员积分另算")); }
     else if (d < IHG_REFRESH) {
-      if (["flight_aa", "flight_other", "car_rental", "hotel_other", "transit", "gas", "dining"].includes(cat)) { m = 5; if (["flight_aa","flight_other","car_rental","hotel_other","transit"].includes(cat)) n.push("5x 广义旅行仅到 2026/12/31"); }
+      if (["flight_aa", "flight_other", "car_rental", "hotel_other", "transit", "gas", "dining"].includes(cat)) { m = 5; if (["flight_aa","flight_other","car_rental","hotel_other","transit"].includes(cat)) n.push(T("5x 广义旅行仅到 2026/12/31")); }
       else m = 3;
     } else {
-      if (["flight_aa", "flight_other", "car_rental", "gas", "grocery", "dining"].includes(cat)) { m = 5; verify = true; n.push("2027 新类别（老卡生效日待 Chase 通知）"); }
+      if (["flight_aa", "flight_other", "car_rental", "gas", "grocery", "dining"].includes(cat)) { m = 5; verify = true; n.push(T("2027 新类别（老卡生效日待 Chase 通知）")); }
       else m = 3;
     }
   } else if (card === "ua") {
-    if (cat === "flight_ua") { m = 5; n.push("卡本身 5x；会员基础里程另算"); }
+    if (cat === "flight_ua") { m = 5; n.push(T("卡本身 5x；会员基础里程另算")); }
     else if (["dining", "flight_aa", "flight_other", "car_rental", "hotel_other", "hotel_hilton", "hotel_marriott", "hotel_ihg", "transit"].includes(cat)) m = 2;
     else m = 1;
   } else if (card === "ips") {
-    if (cat === "hotel_ihg") { m = 12; n.push("卡本身 12x；会员积分另算"); }
+    if (cat === "hotel_ihg") { m = 12; n.push(T("卡本身 12x；会员积分另算")); }
     else if (["dining", "flight_aa", "flight_other", "car_rental", "hotel_other", "transit"].includes(cat)) m = 6;
     else m = 3;
   } else if (card === "dis") {
@@ -294,16 +662,16 @@ function earn(card, cat, d, opts = {}) {
     if (v === "miles") m = 1.5;
     else if (v === "chrome") {
       verify = true;
-      if (["gas", "dining"].includes(cat) && ((S.spend.disChrome || 0) < 1000 || opts.historical)) { m = 2; n.push("2% 加油+餐厅每季前 $1,000（凭记忆）"); }
+      if (["gas", "dining"].includes(cat) && ((S.spend.disChrome || 0) < 1000 || opts.historical)) { m = 2; n.push(T("2% 加油+餐厅每季前 $1,000（凭记忆）")); }
     } else {
       const q = quarterKey(d);
       if (discoverCats(q).includes(cat)) {
-        if (!S.disActivated[q]) n.push("本季 5% 类别，但你还没激活（激活前的消费不补）");
-        else if ((S.spend.dis5 || 0) >= 1500 && !opts.historical) n.push("本季 $1,500 额度已用完");
-        else { m = 5; n.push(`本季 5%，季度 $1,500 封顶（已用 $${fmt0(S.spend.dis5)}）`); }
+        if (!S.disActivated[q]) n.push(T("本季 5% 类别，但你还没激活（激活前的消费不补）"));
+        else if ((S.spend.dis5 || 0) >= 1500 && !opts.historical) n.push(T("本季 $1,500 额度已用完"));
+        else { m = 5; n.push(T`本季 5%，季度 $1,500 封顶（已用 $${fmt0(S.spend.dis5)}）`); }
       }
     }
-    if (S.disMatch) { m *= 2; n.push("首年 Cashback Match ×2"); }
+    if (S.disMatch) { m *= 2; n.push(T("首年 Cashback Match ×2")); }
   } else if (card === "fr") {
     const v = S.freedomVariant;
     const base = v === "unlimited" ? 1.5 : 1;
@@ -313,9 +681,9 @@ function earn(card, cat, d, opts = {}) {
     if (v !== "unlimited") {
       const q = quarterKey(d);
       if (freedomCats(q).includes(cat)) {
-        if (!S.frActivated[q]) n.push(`本季 5% 类别，但你还没激活`);
-        else if ((S.spend.fr5 || 0) >= 1500 && !opts.historical) n.push("本季 $1,500 额度已用完");
-        else { m = catRate + 4; n.push(`本季 5% 类别，季度 $1,500 封顶（已用 $${fmt0(S.spend.fr5)}）`); }
+        if (!S.frActivated[q]) n.push(T`本季 5% 类别，但你还没激活`);
+        else if ((S.spend.fr5 || 0) >= 1500 && !opts.historical) n.push(T("本季 $1,500 额度已用完"));
+        else { m = catRate + 4; n.push(T`本季 5% 类别，季度 $1,500 封顶（已用 $${fmt0(S.spend.fr5)}）`); }
       }
     }
   }
@@ -330,68 +698,49 @@ function cardsFor(who) {
   return all.filter((k) => !CARDS[k].owner || (CFG.canUse.me || []).includes(k));
 }
 function activeCards() { return cardsFor(CFG.who); }
-const ownerPrefix = (k) => (CARDS[k].owner ? CARDS[k].owner + "的 " : "");
-const WHO_LABEL = { me: "我", spouse: "老公", both: "一起" };
+// Cards a person holds as primary: their benefits and to-dos belong to them.
+function ownedBy(who) { return Object.keys(CARDS).filter((k) => who === "both" || (who === "spouse" ? !!CARDS[k].owner : !CARDS[k].owner)); }
+const ownerPrefix = (k) => (CARDS[k].owner ? ownerName() + T("的 ") : "");
+const dueText = (dl) => (dl <= 0 ? T("今天过期") : dl === 1 ? T("明天过期") : T`${dl} 天后过期`);
+const dayChip = (dl) => (dl <= 0 ? T("今天") : dl === 1 ? T("明天") : T`${dl} 天`);
+const ownerName = () => T("老公");
 function valuePct(card, cat, d, opts = {}) {
   if (cat === "flight_ua" && card !== "ua") cat = "flight_other";
   const e = earn(card, cat, d, opts);
   let pct = e.m * CFG.vals[CARDS[card].cur];
-  if (opts.foreign && CARDS[card].ftf) { pct -= CARDS[card].ftf * 100; e.notes.push("3% 海外交易手续费"); }
+  if (opts.foreign && CARDS[card].ftf) { pct -= CARDS[card].ftf * 100; e.notes.push(T("3% 海外交易手续费")); }
   return { ...e, pct };
+}
+// Extra value per $ while a welcome offer is still being chased (bonus spread over the remaining required spend).
+function subState(card, d = NOW) {
+  const sb = CFG.subs?.[card]; if (!sb || sb.done) return null;
+  const spent = CFG.spend.subIps || 0, left = sb.target - spent, days = daysLeft(D(sb.by));
+  if (left <= 0 || days < 0 || d > D(sb.by)) return null;
+  return { ...sb, spent, left, days, boost: sb.bonus * CFG.vals[CARDS[card].cur] / sb.target };
 }
 function ranking(cat, d, opts = {}) {
   let c = cat, o = { ...opts };
   if (cat === "foreign") { c = "other"; o.foreign = true; }
-  return activeCards().map((k) => ({ card: k, ...valuePct(k, c, d, o) })).sort((a, b) => b.pct - a.pct);
+  return activeCards().map((k) => { const v = valuePct(k, c, d, o), sb = subState(k, d); return { card: k, ...v, sub: sb, score: v.pct + (sb ? sb.boost : 0) }; })
+    .sort((a, b) => b.score - a.score);
 }
 
 // ---------------------------------------------------------------------------
 // Benefits to track. period: quarter | half | year | cardyear | info
 // ---------------------------------------------------------------------------
-const BENEFITS = [
-  { id: "hh_resort", card: "hh", title: "Hilton Resort 消费抵扣", amt: 200, period: "half", how: "在参与的 Hilton Resorts 直接付房费/杂费，每半年最多 $200。" },
-  { id: "hh_flight", card: "hh", title: "航空消费抵扣", amt: 50, period: "quarter", how: "直接向航司或经 Amex Travel 的机票等消费，每季度最多 $50。" },
-  { id: "hh_clear", card: "hh", title: "CLEAR+ 会员抵扣", amt: 219, period: "year", how: "用 Aspire 付 CLEAR+ 年费，每自然年最多 $219（金额来自第三方评测）。" },
-  { id: "hh_fnr", card: "hh", title: "年度免房券 Free Night Reward", amt: 0, period: "cardyear", cert: true, fn: "hh", how: "续卡时发放；自然年消费满 $30k / $60k 各再得一张。" },
-  { id: "hh_conrad", card: "hh", title: "Waldorf / Conrad $100 房内消费", period: "info", how: "用 Aspire 专属价预订 2 晚以上 Waldorf Astoria 或 Conrad 时可用。" },
-  { id: "ihg_ub", card: "ihg", title: "United TravelBank Cash", amt: 50, period: "year", verify: true, how: "绑定 MileagePlus 后每年最多 $50。我记得是每半年 $25，请在 Chase 条款核对。" },
-  { id: "ihg_fb", card: "ihg", title: "IHG 酒店餐饮抵扣", amt: 25, period: "quarter", verify: true, how: "2026/10 改版新增，每季度 $25（挂房账）。老卡生效日看 Chase 通知；未生效就标 N/A。" },
-  { id: "ihg_fn", card: "ihg", title: "周年免房券（≤40k 分，可补分）", amt: 0, period: "cardyear", cert: true, fn: "ihg", how: "续卡后发放，可用积分补差价。改版后上限据报道升到 50k（待核实）。" },
-  { id: "ihg_20k", card: "ihg", title: "$20k 消费奖励：$100 + 10k 分", amt: 0, period: "cardyear", goal: { key: "ihgYear", at: 20000 }, how: "卡年度内消费满 $20k 且续卡后发放。" },
-  { id: "ihg_4th", card: "ihg", title: "积分兑换第 4 晚免费", period: "info", how: "连住 4 晚以上积分房时自动生效。" },
-  { id: "ihg_ge", card: "ihg", title: "Global Entry / TSA PreCheck 抵扣", period: "info", how: "每 4 年一次。" },
-  { id: "ips_fb", card: "ips", title: "IHG 酒店餐饮抵扣", amt: 75, period: "quarter", how: "每季度最多 $75，在 IHG 酒店餐饮消费（挂房账）。" },
-  { id: "ips_air", card: "ips", title: "航空抵扣 $200", amt: 200, period: "year", how: "每自然年单笔 $250 以上直接向航司购买，返 $200。据报道活动到 2027/12/31。" },
-  { id: "ips_insta", card: "ips", title: "Instacart 抵扣", amt: 10, period: "month", verify: true, how: "每月最多 $10（只有一个来源提到，待核实）。" },
-  { id: "ips_ub", card: "ips", title: "United TravelBank Cash", amt: 50, period: "year", verify: true, how: "来源说法不一：每年 $50，或每半年 $25。" },
-  { id: "ips_fn", card: "ips", title: "周年免房券（≤60k 分）", amt: 0, period: "cardyear", cert: true, fn: "ips", how: "每个开卡周年后发放。" },
-  { id: "ips_15k", card: "ips", title: "自然年 $15k：20k 分 + 5 晚房晚", amt: 0, period: "year", goal: { key: "ipsCal", at: 15000 }, verify: true, how: "另外每消费 $5k 得 2 晚房晚积分。" },
-  { id: "ips_25k", card: "ips", title: "自然年 $25k：Diamond 到次年底", amt: 0, period: "year", goal: { key: "ipsCal", at: 25000 }, how: "默认送 Platinum + 20 晚房晚积分。" },
-  { id: "ua_insta", card: "ua", title: "Instacart 抵扣", amt: 20, period: "month", how: "每月两笔 $10（不能合在一单用），需用这张卡在 Instacart 直接付款。到 2027/12/31。" },
-  { id: "ua_ride", card: "ua", title: "打车抵扣", amt: 12, period: "month", how: "需登记。每月 $12，12 月是 $18，全年 $150。到 2027/12/31。" },
-  { id: "ua_renowned", card: "ua", title: "Renowned Hotels & Resorts 抵扣", amt: 200, period: "year", how: "通过 United 的 Renowned Hotels 预付酒店，每自然年最多 $200。到 2027/12/31。" },
-  { id: "ua_info", card: "ua", title: "United Club 会员 · 2 件免费托运 · 每年 1,500 PQP · Global Entry 抵扣", period: "info", how: "Club 会员可带 2 位客人；托运行李限本人和 1 位同行。" },
-  { id: "ips_info", card: "ips", title: "积分房第 4 晚免费 · 买分 7 折", period: "info", how: "自动生效。" },
-  { id: "mar_fna", card: "mar", title: "周年免房券（≤35k 分）", amt: 0, period: "cardyear", cert: true, fn: "mar", how: "续卡后发放，可补最多 15k 分。" },
-  { id: "mar_air", card: "mar", title: "航空消费抵扣（限时）", amt: 50, period: "half", verify: true, how: "据报道：航空消费满 $500 后每半年返最多 $50，活动到 2027/6/30，可能需登记或为定向。" },
-  { id: "mar_enc", card: "mar", title: "15 晚房晚积分 + Silver", period: "info", how: "自动入账。" },
-  { id: "aa_20k", card: "aa", title: "$20k 消费换 AA 机票折扣", amt: 0, period: "cardyear", goal: { key: "aaYear", at: 20000 }, how: "卡年度消费满 $20k 且续卡得 $125；2027/1/24 后达标的变为 $150。" },
-  { id: "aa_inflight", card: "aa", title: "机上消费 25% 折扣 → $100 年度抵扣", period: "info", how: "2027/1/24 起，25% 折扣换成每年最多 $100 机上餐饮/Wi-Fi 抵扣，另送 Walmart+。" },
-  { id: "aa_bag", card: "aa", title: "国内航段首件托运行李免费", period: "info", how: "本人及同行最多 4 人，需同一订单。" },
-];
 
 // Period helpers --------------------------------------------------------------
 function periodOf(b, d) {
   const y = d.getFullYear(), mo = d.getMonth();
-  if (b.period === "month") return { key: `${y}M${String(mo + 1).padStart(2, "0")}`, end: new Date(y, mo + 1, 0), label: `${y}/${mo + 1} 月` };
+  if (b.period === "month") return { key: `${y}M${String(mo + 1).padStart(2, "0")}`, end: new Date(y, mo + 1, 0), label: T`${y}/${mo + 1} 月` };
   if (b.period === "quarter") { const q = Math.floor(mo / 3); return { key: y + "Q" + (q + 1), end: new Date(y, q * 3 + 3, 0), label: `Q${q + 1} ${y}` }; }
-  if (b.period === "half") { const h = mo < 6 ? 0 : 1; return { key: y + "H" + (h + 1), end: new Date(y, h ? 12 : 6, 0), label: `${h ? "下" : "上"}半年 ${y}` }; }
-  if (b.period === "year") return { key: String(y), end: new Date(y, 12, 0), label: `${y} 年` };
+  if (b.period === "half") { const h = mo < 6 ? 0 : 1; return { key: y + "H" + (h + 1), end: new Date(y, h ? 12 : 6, 0), label: T`${h ? T("下") : T("上")}半年 ${y}` }; }
+  if (b.period === "year") return { key: String(y), end: new Date(y, 12, 0), label: T`${y} 年` };
   if (b.period === "cardyear") {
     const am = CFG.anniv[b.card] || 0;
-    if (!am) return { key: "cy" + y, end: new Date(y, 12, 0), label: `${y}（未设开卡月，按自然年）`, unset: true };
+    if (!am) return { key: "cy" + y, end: new Date(y, 12, 0), label: T`${y}（未设开卡月，按自然年）`, unset: true };
     const startY = mo + 1 >= am ? y : y - 1;
-    return { key: "cy" + startY, end: new Date(startY + 1, am - 1, 0), label: `卡年度 ${startY}/${am} 起` };
+    return { key: "cy" + startY, end: new Date(startY + 1, am - 1, 0), label: T`卡年度 ${startY}/${am} 起` };
   }
   return null;
 }
@@ -438,7 +787,7 @@ function saveReview(month) {
   if (DB) return DB.doc("reviews/" + month).set(REVIEWS[month]).catch(storeErr);
   LS.set("reviews", REVIEWS); return Promise.resolve();
 }
-function storeErr(e) { showStore(`保存失败：${e?.message || e}。刷新后重试。`); }
+function storeErr(e) { showStore(T`保存失败：${e?.message || e}。刷新后重试。`); }
 function showStore(msg) { const el = $("#storeNote"); el.textContent = msg; el.hidden = !msg; }
 
 async function initStore() {
@@ -446,7 +795,7 @@ async function initStore() {
     CFG = mergeCfg(LS.get("config"));
     Object.assign(USAGE, LS.get("usage") || {});
     Object.assign(REVIEWS, LS.get("reviews") || {});
-    showStore("未连接云端存储（未登录或预览中）：数据只保存在这个浏览器里。");
+    showStore(T("预览模式：改动只保存在这个浏览器里，不会同步。"));
     renderAll();
   };
   local();
@@ -489,8 +838,8 @@ function h(tag, attrs = {}, ...kids) {
 }
 const fmt0 = (n) => Math.round(n || 0).toLocaleString("en-US");
 const fmt2 = (n) => (n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const pctS = (p) => (p >= 0 ? "" : "−") + Math.abs(p).toFixed(2) + "%";
-function cardTag(k) { return h("span", { class: "cardtag" }, h("span", { class: "dot", style: `background:${CARDS[k].color}` }), CARDS[k].short, CARDS[k].owner ? h("span", { class: "owner" }, CARDS[k].owner) : null); }
+const pctS = (p) => (p >= 0 ? "" : "−") + Math.abs(p).toFixed(1) + "%";
+function cardTag(k) { return h("span", { class: "cardtag" }, h("span", { class: "dot", style: `background:${CARDS[k].color}` }), CARDS[k].short, CARDS[k].owner ? h("span", { class: "owner" }, ownerName()) : null); }
 function bar(frac, cls = "") { return h("div", { class: "bar " + cls }, h("i", { style: `width:${Math.max(0, Math.min(1, frac)) * 100}%` })); }
 
 // ---------------------------------------------------------------------------
@@ -498,7 +847,7 @@ function bar(frac, cls = "") { return h("div", { class: "bar " + cls }, h("i", {
 // ---------------------------------------------------------------------------
 // A value that turns into an input on tap; saves on Enter or blur.
 function editNum(val, onSave, { prefix = "", suffix = "", step = "1", label = "", fmt = fmt0 } = {}) {
-  const btn = h("button", { class: "edit", type: "button", "aria-label": `修改${label}` }, prefix + fmt(val) + suffix);
+  const btn = h("button", { class: "edit", type: "button", "aria-label": T`修改${label}` }, prefix + fmt(val) + suffix);
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     const inp = h("input", { type: "number", inputmode: "decimal", step, min: "0", value: String(val ?? 0), class: "edit-input", "aria-label": label });
@@ -529,35 +878,41 @@ let ABROAD = false, SHEET = null, TODO_ALL = false, TODO_OPEN = null;
 
 // A 5% category that would win but is not activated yet.
 function pendingBonus(cat) {
-  const q = quarterKey(NOW);
-  if (CFG.discoverVariant === "cashback" && !CFG.disActivated[q] && discoverCats(q).includes(cat)) return { card: "dis", q, set: () => { CFG.disActivated[q] = true; } };
-  if (CFG.freedomVariant !== "unlimited" && !CFG.frActivated[q] && freedomCats(q).includes(cat)) return { card: "fr", q, set: () => { CFG.frActivated[q] = true; } };
+  const q = quarterKey(NOW), act = activeCards();
+  if (!act.includes("dis") && !act.includes("fr")) return null;
+  if (act.includes("dis") && CFG.discoverVariant === "cashback" && !CFG.disActivated[q] && discoverCats(q).includes(cat)) return { card: "dis", q, set: () => { CFG.disActivated[q] = true; } };
+  if (act.includes("fr") && CFG.freedomVariant !== "unlimited" && !CFG.frActivated[q] && freedomCats(q).includes(cat)) return { card: "fr", q, set: () => { CFG.frActivated[q] = true; } };
   return null;
 }
 function todos() {
-  const out = [];
+  const out = [], mine = ownedBy(CFG.who);
   const q = quarterKey(NOW);
-  for (const k of ["dis", "fr"]) {
+  for (const ck of Object.keys(CFG.subs || {})) {
+    const sb = mine.includes(ck) && subState(ck); if (!sb) continue;
+    out.push({ id: "sub-" + ck, days: Math.min(sb.days, 20), t: T`${CARDS[ck].short} 开卡礼还差 $${fmt0(sb.left)}`, d: T`${sb.by} 前要刷满 $${fmt0(sb.target)}，还剩 ${sb.days} 天。达标前日常消费优先刷这张。`,
+      actions: [[T("已达标"), () => setCfg(() => { CFG.subs[ck].done = true; })]] });
+  }
+  for (const k of ["dis", "fr"].filter((x) => mine.includes(x))) {
     const on = k === "dis" ? CFG.discoverVariant === "cashback" : CFG.freedomVariant !== "unlimited";
     const cats = k === "dis" ? discoverCats(q) : freedomCats(q);
     const act = k === "dis" ? CFG.disActivated : CFG.frActivated;
-    if (on && cats.length && !act[q]) out.push({ id: "act-" + k, days: 0, t: `激活 ${CARDS[k].short} ${q} 5%`, d: `${cats.map((c) => CAT_LABEL[c]).join("、")}。激活前的消费不补。`,
-      actions: [["我已激活", () => setCfg(() => { act[q] = true; })]] });
+    if (on && cats.length && !act[q]) out.push({ id: "act-" + k, days: 0, t: T`激活 ${CARDS[k].short} ${q} 5%`, d: T`${cats.map((c) => CAT_LABEL[c]).join(T("、"))}。激活前的消费不补。`,
+      actions: [[T("我已激活"), () => setCfg(() => { act[q] = true; })]] });
   }
-  for (const b of BENEFITS) {
+  for (const b of BENEFITS.filter((x) => mine.includes(x.card))) {
     if (!b.amt || b.cert) continue;
     const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
     if (u.status === "done" || u.status === "na") continue;
     const left = b.amt - (u.used || 0), dl = daysLeft(p.end);
     if (left <= 0 || dl > 75) continue;
-    out.push({ id: key, days: dl, amt: left, t: `${ownerPrefix(b.card)}${CARDS[b.card].short} · ${b.title}`, d: `还剩 $${fmt0(left)}，${dl} 天后过期`, record: { b, key, used: u.used || 0 },
-      actions: [["用完了", () => setUsage(key, { used: b.amt, status: "done" })], ["不适用", () => setUsage(key, { status: "na" })]] });
+    out.push({ id: key, days: dl, amt: left, t: `${ownerPrefix(b.card)}${CARDS[b.card].short} · ${b.title}`, d: T`还剩 $${fmt0(left)}，` + dueText(dl), record: { b, key, used: u.used || 0 },
+      actions: [[T("用完了"), () => setUsage(key, { used: b.amt, status: "done" })], [T("不适用"), () => setUsage(key, { status: "na" })]] });
   }
-  for (const b of BENEFITS.filter((x) => x.cert)) {
+  for (const b of BENEFITS.filter((x) => x.cert && mine.includes(x.card))) {
     const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
     if (u.status === "done" || u.status === "na" || !u.expires) continue;
     const dl = daysLeft(D(u.expires));
-    if (dl <= 90) out.push({ id: key, days: dl, t: `${ownerPrefix(b.card)}${CARDS[b.card].short} 免房券`, d: `${dl} 天后过期（${u.expires}）`, actions: [["已订房", () => setUsage(key, { status: "done" })]] });
+    if (dl <= 90) out.push({ id: key, days: dl, t: T`${ownerPrefix(b.card)}${CARDS[b.card].short} 免房券`, d: dueText(dl) + T`（${u.expires}）`, actions: [[T("已订房"), () => setUsage(key, { status: "done" })]] });
   }
   return out.sort((a, b) => a.days - b.days || (b.amt || 0) - (a.amt || 0));
 }
@@ -567,67 +922,83 @@ function todoRow(t) {
   const acts = h("div", { class: "actions" });
   if (t.record) {
     if (TODO_OPEN === t.id) {
-      const inp = h("input", { type: "number", inputmode: "decimal", step: "0.01", min: "0", placeholder: "金额", "aria-label": "这次用了多少", style: "width:6.5em" });
+      const inp = h("input", { type: "number", inputmode: "decimal", step: "0.01", min: "0", placeholder: T("金额"), "aria-label": T("这次用了多少"), style: "width:6.5em" });
       const ok = () => { const a = parseFloat(inp.value); if (!(a > 0)) return; const nu = Math.min(t.record.b.amt, t.record.used + a); TODO_OPEN = null; setUsage(t.record.key, { used: nu, status: nu >= t.record.b.amt ? "done" : "open" }); };
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") ok(); });
-      acts.append(inp, h("button", { class: "small primary", onclick: ok }, "记下"), h("button", { class: "small ghost", onclick: () => { TODO_OPEN = null; renderUse(); } }, "取消"));
+      acts.append(inp, h("button", { class: "small primary", onclick: ok }, T("记下")), h("button", { class: "small ghost", onclick: () => { TODO_OPEN = null; renderUse(); } }, T("取消")));
       setTimeout(() => inp.focus(), 0);
-    } else acts.append(h("button", { class: "small primary", onclick: () => { TODO_OPEN = t.id; renderUse(); } }, "记一笔"));
+    } else acts.append(h("button", { class: "small primary", onclick: () => { TODO_OPEN = t.id; renderUse(); } }, T("记一笔")));
   }
   if (TODO_OPEN !== t.id) t.actions.forEach(([l, fn], i) => acts.append(h("button", { class: "small" + (!t.record && i === 0 ? " primary" : " ghost"), onclick: fn }, l)));
   row.append(acts);
   return row;
 }
 const GOALS = () => [
-  { card: "hh", t: "Aspire 自然年 $30k → 第 2 张免房券", key: "hhCal", at: 30000, bonus: CFG.fnValue.hh },
-  { card: "hh", t: "Aspire 自然年 $60k → 第 3 张免房券", key: "hhCal", at: 60000, bonus: CFG.fnValue.hh, after: 30000 },
-  { card: "aa", t: "Citi AA 卡年度 $20k → $125 机票折扣", key: "aaYear", at: 20000, bonus: 125 },
-  { card: "ips", t: "IHG Select 自然年 $15k → 20k 分", key: "ipsCal", at: 15000, bonus: 20000 * CFG.vals.IHG / 100, verify: true },
-  { card: "ips", t: "IHG Select 自然年 $25k → Diamond", key: "ipsCal", at: 25000, bonus: 0 },
-  { card: "ihg", t: "IHG Premier 卡年度 $20k → $100 + 10k 分", key: "ihgYear", at: 20000, bonus: 100 + 10000 * CFG.vals.IHG / 100 },
+  { card: "hh", t: T("Aspire 自然年 $30k → 第 2 张免房券"), key: "hhCal", at: 30000, bonus: CFG.fnValue.hh },
+  { card: "hh", t: T("Aspire 自然年 $60k → 第 3 张免房券"), key: "hhCal", at: 60000, bonus: CFG.fnValue.hh, after: 30000 },
+  { card: "aa", t: T("Citi AA 卡年度 $20k → $125 机票折扣"), key: "aaYear", at: 20000, bonus: 125 },
+  { card: "ips", t: T("IHG Select 自然年 $15k → 20k 分"), key: "ipsCal", at: 15000, bonus: 20000 * CFG.vals.IHG / 100, verify: true },
+  { card: "ips", t: T("IHG Select 自然年 $25k → Diamond"), key: "ipsCal", at: 25000, bonus: 0 },
+  { card: "ihg", t: T("IHG Premier 卡年度 $20k → $100 + 10k 分"), key: "ihgYear", at: 20000, bonus: 100 + 10000 * CFG.vals.IHG / 100 },
 ];
 function goalRow(g) {
   const spent = CFG.spend[g.key] || 0, base = g.after || 0;
   const everyday = valuePct(g.card, "other", NOW).pct;
   const extra = g.bonus / (g.at - base) * 100;
   return h("div", { class: "row" },
-    h("div", { class: "row-head" }, h("h3", {}, g.t), h("div", { class: "chips" }, g.verify ? h("span", { class: "chip warn" }, "待核实") : null, cardTag(g.card))),
+    h("div", { class: "row-head" }, h("h3", {}, g.t), h("div", { class: "chips" }, g.verify ? h("span", { class: "chip warn" }, T("待核实")) : null, cardTag(g.card))),
     bar((spent - base) / (g.at - base), spent >= g.at ? "good" : ""),
-    h("span", { class: "note" }, "已花 ", editNum(spent, (x) => setCfg(() => { CFG.spend[g.key] = x; }), { prefix: "$", label: "已花金额" }), ` / $${fmt0(g.at)}`,
-      spent >= g.at ? " · 已达标" : g.bonus ? ` · 达标后一般消费 ≈ ${(everyday + extra).toFixed(2)}%` : ""));
+    h("span", { class: "note" }, T("已花 "), editNum(spent, (x) => setCfg(() => { CFG.spend[g.key] = x; }), { prefix: "$", label: T("已花金额") }), ` / $${fmt0(g.at)}`,
+      spent >= g.at ? T(" · 已达标") : g.bonus ? T` · 达标后一般消费 ≈ ${(everyday + extra).toFixed(2)}%` : ""));
 }
 function renderUse() {
   const v = $("#view-use"); v.replaceChildren();
   const tiles = h("div", { class: "tiles" }, TILE_ORDER.map((cat) => {
     const r = ranking(cat, NOW, { foreign: ABROAD }), best = r[0], pend = pendingBonus(cat);
+    const baseBest = r.reduce((a, x) => (x.pct > a.pct ? x : a), r[0]);
     return h("button", { class: "tile", type: "button", "aria-haspopup": "dialog", onclick: () => openSheet(cat) },
       h("span", { class: "tile-name" }, CAT_LABEL[cat]),
       h("span", { class: "tile-pct num" }, pctS(best.pct)),
       h("span", { class: "tile-card" }, cardTag(best.card)),
-      pend && !ABROAD ? h("span", { class: "tile-hint" }, `激活 ${CARDS[pend.card].short} 可得 5%`) : null);
+      best.sub && baseBest.card !== best.card ? h("span", { class: "tile-hint" }, T`冲开卡礼（平时用 ${CARDS[baseBest.card].short}）`) : null,
+      pend && !ABROAD ? h("span", { class: "tile-hint" }, T`激活 ${CARDS[pend.card].short} 可得 5%`) : null);
   }));
   const td = todos();
-  const top = td[0];
+  const top = td.find((t) => !t.id.startsWith("sub-"));
+  const subs = Object.keys(CFG.subs || {}).filter((ck) => activeCards().includes(ck) && subState(ck));
   v.append(h("section", {},
-    h("h2", {}, "今天刷哪张"),
-    h("div", { class: "row-head" },
-      h("div", { class: "seg", role: "radiogroup", "aria-label": "谁来刷" }, ["me", "spouse", "both"].map((w) =>
-        h("button", { type: "button", role: "radio", "aria-checked": String(CFG.who === w), onclick: () => setCfg(() => { CFG.who = w; }) }, WHO_LABEL[w]))),
-      switchBtn(ABROAD, "在海外", (x) => { ABROAD = x; renderUse(); })),
+    h("div", { class: "row-head" }, h("h2", {}, T("今天刷哪张")), switchBtn(ABROAD, T("在海外"), (x) => { ABROAD = x; renderUse(); })),
     top ? h("button", { class: "banner" + (top.days <= 21 ? " bad" : ""), onclick: () => $("#todo-sec")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
-      h("span", {}, h("b", {}, top.t), h("span", { class: "note" }, " · " + top.d)), h("span", { class: "chip" }, `待办 ${td.length} ↓`)) : null,
+      h("span", {}, h("b", {}, top.t), h("span", { class: "note" }, " · " + top.d)), h("span", { class: "chip" }, T`待办 ${td.length} ↓`)) : null,
+    activeCards().length === 1 ? h("div", { class: "status" }, T`现在只有 ${CARDS[activeCards()[0]].short} 一张卡可以刷，所有消费都用它。有附属卡的话，在「设置」里打开后这里会给出更好的选择。`) : null,
+    subs.map((ck) => { const sb = subState(ck); return h("div", { class: "status" }, h("b", {}, T`${CARDS[ck].short} 开卡礼进行中：`), T`还差 $${fmt0(sb.left)}，${sb.days} 天内刷满。达标前大部分消费都先刷这张（开卡礼平摊下来每 $1 约值 ${fmt0(sb.boost)}¢）。`); }),
     tiles,
-    h("span", { class: "note" }, "点一格看所有卡的排名，倍数、每分价值、额度都能在里面直接改。")));
+    h("span", { class: "note" }, T("百分比是每花 $100 大约值回多少钱（积分按估值折成美元）。点一格看所有卡怎么比。"))));
 
   if (td.length) {
     const shown = TODO_ALL ? td : td.slice(0, 3);
-    v.append(h("section", { id: "todo-sec" }, h("div", { class: "row-head" }, h("h2", {}, "待办"), h("span", { class: "chip " + (td.some((t) => t.days <= 21) ? "bad" : "warn") }, `${td.length} 项`)),
+    v.append(h("section", { id: "todo-sec" }, h("div", { class: "row-head" }, h("h2", {}, T("待办")), h("span", { class: "chip " + (td.some((t) => t.days <= 21) ? "bad" : "warn") }, T`${td.length} 项`)),
       h("div", { class: "panel rows" }, shown.map(todoRow)),
-      td.length > 3 ? h("button", { class: "ghost", onclick: () => { TODO_ALL = !TODO_ALL; renderUse(); } }, TODO_ALL ? "收起" : `再看 ${td.length - 3} 项`) : null));
+      td.length > 3 ? h("button", { class: "ghost", onclick: () => { TODO_ALL = !TODO_ALL; renderUse(); } }, TODO_ALL ? T("收起") : T`再看 ${td.length - 3} 项`) : null));
   }
 
-  if (GOALS().some((g) => activeCards().includes(g.card))) v.append(h("section", {}, h("div", {}, h("h2", {}, "消费目标"), h("span", { class: "note" }, "导入账单后自动累加；点金额可以直接改。")),
+  if (GOALS().some((g) => activeCards().includes(g.card))) v.append(h("section", {}, h("div", {}, h("h2", {}, T("消费目标")), h("span", { class: "note" }, T("导入账单后自动累加；点金额可以直接改。"))),
     h("div", { class: "panel rows" }, GOALS().filter((g) => activeCards().includes(g.card)).map(goalRow))));
+}
+
+function subBlock(ck) {
+  const sb = CFG.subs?.[ck]; if (!sb) return null;
+  const st = subState(ck), spent = CFG.spend.subIps || 0;
+  const set = (f) => setCfg(() => { CFG.subs[ck] = { ...CFG.subs[ck], ...f }; });
+  return h("div", { class: "ctrl" },
+    h("div", { class: "row-head" }, h("b", {}, T`${CARDS[ck].short} 开卡礼`), sb.done || !st ? h("span", { class: "chip good" }, T("已完成")) : h("span", { class: "chip warn" }, T`还剩 ${st.days} 天`)),
+    bar(spent / sb.target, spent >= sb.target ? "good" : ""),
+    h("span", { class: "note" }, T("已刷 "), editNum(spent, (x) => setCfg(() => { CFG.spend.subIps = x; }), { prefix: "$", label: T("开卡礼已刷") }),
+      " / ", editNum(sb.target, (x) => set({ target: x }), { prefix: "$", label: T("开卡礼要求") }),
+      T(" · 奖励 "), editNum(sb.bonus, (x) => set({ bonus: x }), { label: T("开卡礼积分"), fmt: (n) => fmt0(n) }), T(" 分"),
+      T(" · 截止 "), h("input", { type: "date", value: sb.by, class: "edit-input", style: "width:auto", "aria-label": T("开卡礼截止日"), onchange: (e) => set({ by: e.target.value }) })),
+    st ? h("span", { class: "note" }, T`达标前每刷 $1 额外约值 ${fmt0(st.boost * 1)}¢，所以推荐会优先这张。`) : null,
+    !sb.done ? h("div", { class: "actions" }, h("button", { class: "small ghost", onclick: () => set({ done: true }) }, T("已拿到开卡礼"))) : null);
 }
 
 // Category detail sheet --------------------------------------------------------
@@ -639,29 +1010,31 @@ function renderSheet() {
   const cat = SHEET, q = quarterKey(NOW);
   const r = ranking(cat, NOW, { foreign: ABROAD });
   const ctrls = [];
-  if (CFG.discoverVariant === "cashback" && discoverCats(q).includes(cat)) ctrls.push(h("div", { class: "ctrl" },
-    switchBtn(CFG.disActivated[q], `Discover ${q} 5% 已激活`, (x) => setCfg(() => { CFG.disActivated[q] = x; })),
-    h("span", { class: "note" }, "本季已用 ", editNum(CFG.spend.dis5, (x) => setCfg(() => { CFG.spend.dis5 = x; }), { prefix: "$", label: "Discover 5% 已用" }), " / $1,500")));
-  if (CFG.freedomVariant !== "unlimited" && freedomCats(q).includes(cat)) ctrls.push(h("div", { class: "ctrl" },
-    switchBtn(CFG.frActivated[q], `Freedom ${q} 5% 已激活`, (x) => setCfg(() => { CFG.frActivated[q] = x; })),
-    h("span", { class: "note" }, "本季已用 ", editNum(CFG.spend.fr5, (x) => setCfg(() => { CFG.spend.fr5 = x; }), { prefix: "$", label: "Freedom 5% 已用" }), " / $1,500")));
-  if (["grocery", "gas", "dining"].includes(cat)) ctrls.push(h("div", { class: "ctrl" },
-    h("span", { class: "note" }, "Boundless 3x 今年已用 ", editNum(CFG.spend.mar3x, (x) => setCfg(() => { CFG.spend.mar3x = x; }), { prefix: "$", label: "Boundless 3x 已用" }), " / $6,000")));
+  for (const ck of Object.keys(CFG.subs || {})) if (activeCards().includes(ck) && subState(ck)) ctrls.push(subBlock(ck));
+  if (activeCards().includes("dis") && CFG.discoverVariant === "cashback" && discoverCats(q).includes(cat)) ctrls.push(h("div", { class: "ctrl" },
+    switchBtn(CFG.disActivated[q], T`Discover ${q} 5% 已激活`, (x) => setCfg(() => { CFG.disActivated[q] = x; })),
+    h("span", { class: "note" }, T("本季已用 "), editNum(CFG.spend.dis5, (x) => setCfg(() => { CFG.spend.dis5 = x; }), { prefix: "$", label: T("Discover 5% 已用") }), " / $1,500")));
+  if (activeCards().includes("fr") && CFG.freedomVariant !== "unlimited" && freedomCats(q).includes(cat)) ctrls.push(h("div", { class: "ctrl" },
+    switchBtn(CFG.frActivated[q], T`Freedom ${q} 5% 已激活`, (x) => setCfg(() => { CFG.frActivated[q] = x; })),
+    h("span", { class: "note" }, T("本季已用 "), editNum(CFG.spend.fr5, (x) => setCfg(() => { CFG.spend.fr5 = x; }), { prefix: "$", label: T("Freedom 5% 已用") }), " / $1,500")));
+  if (activeCards().includes("mar") && ["grocery", "gas", "dining"].includes(cat)) ctrls.push(h("div", { class: "ctrl" },
+    h("span", { class: "note" }, T("Boundless 3x 今年已用 "), editNum(CFG.spend.mar3x, (x) => setCfg(() => { CFG.spend.mar3x = x; }), { prefix: "$", label: T("Boundless 3x 已用") }), " / $6,000")));
   const list = h("div", { class: "rank" }, r.map((x, i) => {
     const cur = CARDS[x.card].cur;
     return h("div", { class: "rank-row" + (i === 0 ? " best" : "") },
-      h("span", {}, cardTag(x.card), x.verify ? h("span", { class: "chip warn", style: "margin-left:6px" }, "待核实") : null),
+      h("span", {}, cardTag(x.card), x.verify ? h("span", { class: "chip warn", style: "margin-left:6px" }, T("待核实")) : null),
       h("span", { class: "num pct" }, pctS(x.pct)),
-      h("span", { class: "note" }, `${x.m}x × `, editNum(CFG.vals[cur], (val) => setCfg(() => { CFG.vals[cur] = val; }), { suffix: "¢", step: "0.05", label: `${CUR_LABEL[cur]} 每分价值`, fmt: (n) => String(n) }), ` ${CUR_LABEL[cur]}`,
-        x.notes.length ? " · " + x.notes.join(" · ") : ""));
+      h("span", { class: "note" }, `${x.m}x × `, editNum(CFG.vals[cur], (val) => setCfg(() => { CFG.vals[cur] = val; }), { suffix: "¢", step: "0.05", label: T`${CUR_LABEL[cur]} 每分价值`, fmt: (n) => String(n) }), ` ${CUR_LABEL[cur]}`,
+        x.notes.length ? " · " + x.notes.join(" · ") : "", x.sub ? T` · 冲开卡礼：每 $1 另值约 ${fmt0(x.sub.boost)}¢` : ""));
   }));
   root.replaceChildren(
     h("div", { class: "scrim", onclick: closeSheet }),
     h("div", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-label": CAT_LABEL[cat] },
-      h("div", { class: "row-head" }, h("h2", {}, CAT_LABEL[cat] + ` · ${WHO_LABEL[CFG.who]}` + (ABROAD ? " · 海外" : "")), h("button", { class: "small ghost", onclick: closeSheet, "aria-label": "关闭" }, "关闭")),
+      h("div", { class: "row-head" }, h("h2", {}, CAT_LABEL[cat] + ` · ${WHO_LABEL[CFG.who]}` + (ABROAD ? T(" · 海外") : "")), h("button", { class: "small ghost", onclick: closeSheet, "aria-label": T("关闭") }, T("关闭"))),
+      h("span", { class: "note" }, T("例：6x × 0.6¢ = 每 $1 得 6 分、每分约 0.6 美分，合计 3.6%。")),
       ctrls.length ? h("div", { class: "ctrls" }, ctrls) : null,
       list,
-      h("span", { class: "note" }, "点每分价值可以改，改了会影响所有类别的排名。")));
+      h("span", { class: "note" }, T("点每分价值可以改，改了会影响所有类别的排名。"))));
   root.hidden = false; document.body.style.overflow = "hidden";
 }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SHEET) closeSheet(); });
@@ -675,8 +1048,8 @@ function setUsage(key, patch) {
   saveUsage(key); renderPerks(); renderUse();
 }
 const FEE_NOTES = {
-  aa: () => NOW < AA_REFRESH ? "2027/1/24 起续卡年费 $99 → $150，同时加 $100 机上抵扣、Walmart+、$150 机票折扣。" : "",
-  ihg: () => "2027 年续卡时年费 $99 → $150；非 IHG 的广义旅行 5x 只到 2026/12/31。",
+  aa: () => NOW < AA_REFRESH ? T("2027/1/24 起续卡年费 $99 → $150，同时加 $100 机上抵扣、Walmart+、$150 机票折扣。") : "",
+  ihg: () => T("2027 年续卡时年费 $99 → $150；非 IHG 的广义旅行 5x 只到 2026/12/31。"),
 };
 function openCount(ck) {
   return BENEFITS.filter((b) => b.card === ck && b.amt && !b.cert).filter((b) => {
@@ -691,12 +1064,12 @@ function renderPerks() {
   for (const [k, u] of Object.entries(USAGE)) if (k.includes("_" + y) || k.includes("_cy" + y)) captured += u.used || 0;
   const fees = Object.values(CARDS).reduce((s, c) => s + c.fee, 0);
   v.append(h("div", { class: "figs" },
-    h("div", { class: "panel fig" }, h("span", { class: "label" }, `${y} 已用抵扣`), h("b", {}, "$" + fmt0(captured))),
-    h("div", { class: "panel fig" }, h("span", { class: "label" }, "年费合计"), h("b", {}, "$" + fmt0(fees))),
-    h("div", { class: "panel fig" }, h("span", { class: "label" }, "差额"), h("b", { style: `color:var(${captured >= fees ? "--good" : "--warn"})` }, (captured >= fees ? "+" : "−") + "$" + fmt0(Math.abs(captured - fees))))));
-  v.append(h("span", { class: "note" }, "抵扣只算现金类，免房券价值不计入。导入账单时到账的抵扣会自动勾掉。"));
+    h("div", { class: "panel fig" }, h("span", { class: "label" }, T`${y} 已用抵扣`), h("b", {}, "$" + fmt0(captured))),
+    h("div", { class: "panel fig" }, h("span", { class: "label" }, T("年费合计")), h("b", {}, "$" + fmt0(fees))),
+    h("div", { class: "panel fig" }, h("span", { class: "label" }, T("差额")), h("b", { style: `color:var(${captured >= fees ? "--good" : "--warn"})` }, (captured >= fees ? "+" : "−") + "$" + fmt0(Math.abs(captured - fees))))));
+  v.append(h("span", { class: "note" }, T("抵扣只算现金类，免房券价值不计入。导入账单时到账的抵扣会自动勾掉。")));
 
-  const order = ["hh", "ips", "ihg", "mar", "aa", "dis", "fr", "ua"].sort((a, b) => openCount(b) - openCount(a));
+  const order = ["hh", "ips", "ihg", "mar", "aa", "dis", "fr", "ua"].filter((k) => ownedBy(CFG.who).includes(k)).sort((a, b) => openCount(b) - openCount(a));
   for (const ck of order) {
     const items = BENEFITS.filter((b) => b.card === ck);
     const tracked = items.filter((b) => b.period !== "info"), info = items.filter((b) => b.period === "info");
@@ -708,60 +1081,61 @@ function renderPerks() {
       if (on) {
         const act = isDis ? CFG.disActivated : CFG.frActivated, key = isDis ? "dis5" : "fr5";
         body.append(h("div", { class: "row" },
-          h("div", { class: "row-head" }, h("h3", {}, `${q} 5%：${(isDis ? discoverCats(q) : freedomCats(q)).map((c) => CAT_LABEL[c]).join("、") || "本季类别未设置"}`),
-            switchBtn(act[q], "已激活", (x) => setCfg(() => { act[q] = x; }))),
+          h("div", { class: "row-head" }, h("h3", {}, T`${q} 5%：${(isDis ? discoverCats(q) : freedomCats(q)).map((c) => CAT_LABEL[c]).join(T("、")) || T("本季类别未设置")}`),
+            switchBtn(act[q], T("已激活"), (x) => setCfg(() => { act[q] = x; }))),
           bar((CFG.spend[key] || 0) / 1500),
-          h("span", { class: "note" }, "已用 ", editNum(CFG.spend[key], (x) => setCfg(() => { CFG.spend[key] = x; }), { prefix: "$", label: "5% 已用" }), " / $1,500")));
+          h("span", { class: "note" }, T("已用 "), editNum(CFG.spend[key], (x) => setCfg(() => { CFG.spend[key] = x; }), { prefix: "$", label: T("5% 已用") }), " / $1,500")));
       }
     }
+    if (CFG.subs?.[ck]) body.append(h("div", { class: "row" }, subBlock(ck)));
     tracked.forEach((b) => body.append(perkRow(b)));
-    const extra = [...info.map((b) => `${b.title}：${b.how}`)];
-    if (ck === "dis") extra.push("无海外手续费，但海外受理率低。");
-    if (ck === "fr") extra.push("3% 海外交易手续费；Chase Travel 订旅行 5%（未计入）。");
+    const extra = [...info.map((b) => T`${b.title}：${b.how}`)];
+    if (ck === "dis") extra.push(T("无海外手续费，但海外受理率低。"));
+    if (ck === "fr") extra.push(T("3% 海外交易手续费；Chase Travel 订旅行 5%（未计入）。"));
     const fee = FEE_NOTES[ck]?.();
-    if (fee) body.append(h("div", { class: "row" }, h("span", { class: "chip acc", style: "justify-self:start" }, "年费变化"), h("span", { class: "note" }, fee)));
-    if (extra.length) body.append(h("div", { class: "row" }, h("span", { class: "label" }, "其他权益"), extra.map((t) => h("span", { class: "note" }, t))));
+    if (fee) body.append(h("div", { class: "row" }, h("span", { class: "chip acc", style: "justify-self:start" }, T("年费变化")), h("span", { class: "note" }, fee)));
+    if (extra.length) body.append(h("div", { class: "row" }, h("span", { class: "label" }, T("其他权益")), extra.map((t) => h("span", { class: "note" }, t))));
     const open = OPEN_CARDS.has(ck) || (!OPEN_CARDS.has("_touched_" + ck) && n > 0);
     const det = h("details", { class: "panel card-sec", open },
       h("summary", {}, h("span", { class: "cardtag" }, h("span", { class: "dot", style: `background:${CARDS[ck].color}` }), CARDS[ck].name),
-        h("span", { class: "chips" }, n ? h("span", { class: "chip warn" }, `${n} 项待用`) : null, h("span", { class: "chip" }, CARDS[ck].fee ? `$${CARDS[ck].fee}/年` : "无年费"))),
+        h("span", { class: "chips" }, n ? h("span", { class: "chip warn" }, T`${n} 项待用`) : null, h("span", { class: "chip" }, CARDS[ck].fee ? T`$${CARDS[ck].fee}/年` : T("无年费")))),
       body);
     det.addEventListener("toggle", () => { OPEN_CARDS.add("_touched_" + ck); det.open ? OPEN_CARDS.add(ck) : OPEN_CARDS.delete(ck); });
     v.append(det);
   }
-  v.append(h("p", { class: "note src" }, `条款核对日期 ${TERMS_CHECKED}。标“待核实”的条目来自记忆或来源冲突，以发卡行为准。`));
+  v.append(h("p", { class: "note src" }, T`条款核对日期 ${TERMS_CHECKED}。标“待核实”的条目来自记忆或来源冲突，以发卡行为准。`));
 }
 function perkRow(b) {
   const row = h("div", { class: "row" });
-  const head = h("div", { class: "row-head" }, h("h3", {}, b.title), h("div", { class: "chips" }, b.verify ? h("span", { class: "chip warn" }, "待核实") : null));
+  const head = h("div", { class: "row-head" }, h("h3", {}, b.title), h("div", { class: "chips" }, b.verify ? h("span", { class: "chip warn" }, T("待核实")) : null));
   row.append(head);
   const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
   const dl = daysLeft(p.end);
-  const st = u.status === "done" ? ["good", "已用完"] : u.status === "na" ? ["", "不适用"] : dl <= 21 ? ["bad", `${dl} 天`] : dl <= 75 ? ["warn", `${dl} 天`] : ["", `${dl} 天`];
+  const st = u.status === "done" ? ["good", T("已用完")] : u.status === "na" ? ["", T("不适用")] : dl <= 21 ? ["bad", dayChip(dl)] : dl <= 75 ? ["warn", dayChip(dl)] : ["", dayChip(dl)];
   head.lastChild.append(h("span", { class: "chip " + st[0] }, st[1]));
   row.append(h("span", { class: "note" }, `${p.label} · ${b.how}`));
   if (b.amt) {
     const used = u.used || 0;
     row.append(bar(used / b.amt, used >= b.amt ? "good" : ""),
       h("div", { class: "row-head" },
-        h("span", { class: "note" }, "已用 ", editNum(used, (x) => { const nu = Math.min(b.amt, x); setUsage(key, { used: nu, status: nu >= b.amt ? "done" : "open" }); }, { prefix: "$", label: `${b.title} 已用`, fmt: fmt2, step: "0.01" }), ` / $${b.amt}`),
+        h("span", { class: "note" }, T("已用 "), editNum(used, (x) => { const nu = Math.min(b.amt, x); setUsage(key, { used: nu, status: nu >= b.amt ? "done" : "open" }); }, { prefix: "$", label: T`${b.title} 已用`, fmt: fmt2, step: "0.01" }), ` / $${b.amt}`),
         h("div", { class: "actions" },
-          used < b.amt && u.status !== "na" ? h("button", { class: "small", onclick: () => setUsage(key, { used: b.amt, status: "done" }) }, "用完了") : null,
-          h("button", { class: "small ghost", onclick: () => setUsage(key, { status: u.status === "na" ? "open" : "na" }) }, u.status === "na" ? "恢复提醒" : "不适用"))));
+          used < b.amt && u.status !== "na" ? h("button", { class: "small", onclick: () => setUsage(key, { used: b.amt, status: "done" }) }, T("用完了")) : null,
+          h("button", { class: "small ghost", onclick: () => setUsage(key, { status: u.status === "na" ? "open" : "na" }) }, u.status === "na" ? T("恢复提醒") : T("不适用")))));
   } else if (b.cert) {
-    const exp = h("input", { type: "date", value: u.expires || "", id: "exp-" + key, "aria-label": "到期日", onchange: (e) => setUsage(key, { expires: e.target.value }) });
-    row.append(h("div", { class: "actions" }, h("label", { class: "field" }, h("span", {}, "到期日"), exp),
-      h("button", { class: "small" + (u.status === "done" ? "" : " primary"), onclick: () => setUsage(key, { status: u.status === "done" ? "open" : "done" }) }, u.status === "done" ? "撤销已用" : "已订房")));
-    if (b.fn) row.append(h("span", { class: "note" }, "这张券对你值 ", editNum(CFG.fnValue[b.fn], (x) => setCfg(() => { CFG.fnValue[b.fn] = x; }), { prefix: "$", label: "免房券价值" })));
+    const exp = h("input", { type: "date", value: u.expires || "", id: "exp-" + key, "aria-label": T("到期日"), onchange: (e) => setUsage(key, { expires: e.target.value }) });
+    row.append(h("div", { class: "actions" }, h("label", { class: "field" }, h("span", {}, T("到期日")), exp),
+      h("button", { class: "small" + (u.status === "done" ? "" : " primary"), onclick: () => setUsage(key, { status: u.status === "done" ? "open" : "done" }) }, u.status === "done" ? T("撤销已用") : T("已订房"))));
+    if (b.fn) row.append(h("span", { class: "note" }, T("这张券对你值 "), editNum(CFG.fnValue[b.fn], (x) => setCfg(() => { CFG.fnValue[b.fn] = x; }), { prefix: "$", label: T("免房券价值") })));
   } else if (b.goal) {
     const spent = CFG.spend[b.goal.key] || 0;
     row.append(bar(spent / b.goal.at, spent >= b.goal.at ? "good" : ""),
-      h("span", { class: "note" }, "已花 ", editNum(spent, (x) => setCfg(() => { CFG.spend[b.goal.key] = x; }), { prefix: "$", label: "已花金额" }), ` / $${fmt0(b.goal.at)}`));
+      h("span", { class: "note" }, T("已花 "), editNum(spent, (x) => setCfg(() => { CFG.spend[b.goal.key] = x; }), { prefix: "$", label: T("已花金额") }), ` / $${fmt0(b.goal.at)}`));
   }
   if (p.unset) {
-    const sel = h("select", { "aria-label": "开卡月份", style: "width:auto", onchange: (e) => setCfg(() => { CFG.anniv[b.card] = parseInt(e.target.value, 10); }) },
-      h("option", { value: "0" }, "选开卡月份…"), Array.from({ length: 12 }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} 月`)));
-    row.append(h("div", { class: "actions" }, h("span", { class: "note" }, "周期要按开卡月份算："), sel));
+    const sel = h("select", { "aria-label": T("开卡月份"), style: "width:auto", onchange: (e) => setCfg(() => { CFG.anniv[b.card] = parseInt(e.target.value, 10); }) },
+      h("option", { value: "0" }, T("选开卡月份…")), Array.from({ length: 12 }, (_, i) => h("option", { value: String(i + 1) }, T`${i + 1} 月`)));
+    row.append(h("div", { class: "actions" }, h("span", { class: "note" }, T("周期要按开卡月份算：")), sel));
   }
   return row;
 }
@@ -875,11 +1249,11 @@ function claudePrompt(txns, card, month) {
   return `You are categorizing transactions from one US credit card statement (card: ${CARDS[card].name}, month ${month}).
 Each line is index|date|description|amount. Amount sign is already normalized: positive = charge, negative = payment, refund or statement credit.
 
-For EVERY line output {"i":index,"merchant":"short clean merchant name","category":one of ${JSON.stringify(CAT_ENUM)},"foreign":bool (foreign currency or foreign merchant),"flag":null or "fee"|"interest"|"subscription"|"duplicate"|"unusual","note":"<=12 Chinese words, only when flag is set","creditFor":null or a benefit id}
+For EVERY line output {"i":index,"merchant":"short clean merchant name","category":one of ${JSON.stringify(CAT_ENUM)},"foreign":bool (foreign currency or foreign merchant),"flag":null or "fee"|"interest"|"subscription"|"duplicate"|"unusual","note":"<=12 words in ${LANG === "en" ? "English" : "Chinese"}, only when flag is set","creditFor":null or a benefit id}
 Category guidance: food delivery = dining; Walmart/Target/Costco = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
 creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "ihg_fb" (IHG food & beverage credit), "mar_air" (Marriott card airline credit), "ips_fb" / "ips_air" / "ips_insta" (IHG Premier Select food & beverage / airline / Instacart credits), "ua_insta" / "ua_ride" / "ua_renowned" (United Club Card Instacart / rideshare / Renowned Hotels credits). United Airlines purchases = flight_ua. Otherwise null.
 
-Then up to 5 short Chinese observations about habits worth questioning (subscriptions to cancel, avoidable fees, spend jumps). Do not discuss which card to use.
+Then up to 5 short ${LANG === "en" ? "English" : "Chinese"} observations about habits worth questioning (subscriptions to cancel, avoidable fees, spend jumps). Do not discuss which card to use.
 
 Reply with only JSON: {"txns":[...],"insights":["..."]}
 
@@ -926,6 +1300,7 @@ function contributions(R) {
     if (r.card === "aa" && cy("aa_20k", d)) add(c.spend, "aaYear", r.amount);
     if (r.card === "ihg" && cy("ihg_20k", d)) add(c.spend, "ihgYear", r.amount);
     if (r.card === "ips" && d.getFullYear() === y) add(c.spend, "ipsCal", r.amount);
+    const sb = CFG.subs?.ips; if (r.card === "ips" && sb && d >= D(sb.opened) && d <= D(sb.by)) add(c.spend, "subIps", r.amount);
     if (r.card === "mar" && ["grocery", "gas", "dining"].includes(r.category) && d.getFullYear() === y) add(c.spend, "mar3x", r.amount);
     if (r.card === "dis" && CFG.discoverVariant === "cashback" && quarterKey(d) === q && discoverCats(q).includes(r.category)) add(c.spend, "dis5", r.amount);
   }
@@ -967,17 +1342,23 @@ function renderReview() {
     }
     e.target.value = ""; renderPending();
   } });
-  const ta = h("textarea", { id: "rv-text", placeholder: "没有 CSV 也可以：从网银复制交易明细粘贴到这里。\n例：\n10/03  WHOLE FOODS MARKET #123   86.42\n10/05  UBER *TRIP                 23.10" });
+  const ta = h("textarea", { id: "rv-text", placeholder: T("没有 CSV 也可以：从网银复制交易明细粘贴到这里。\n例：\n10/03  WHOLE FOODS MARKET #123   86.42\n10/05  UBER *TRIP                 23.10") });
   const addPaste = h("button", { class: "small", onclick: () => {
     if (!ta.value.trim()) return;
     const parsed = parseStatement(ta.value);
-    PENDING.push({ name: "粘贴的明细", parsed, card: "", month: inferMonth(parsed.txns) }); ta.value = ""; renderPending();
-  } }, "加入列表");
+    PENDING.push({ name: T("粘贴的明细"), parsed, card: "", month: inferMonth(parsed.txns) }); ta.value = ""; renderPending();
+  } }, T("加入列表"));
   v.append(h("section", {},
-    h("div", {}, h("h2", {}, "月度账单复盘"), h("span", { class: "note" }, "把各家导出的 CSV 一次全选进来。保存后，消费进度和到账的抵扣会自动更新。")),
+    h("div", {}, h("h2", {}, T("月度账单复盘")), h("span", { class: "note" }, T("把各家导出的 CSV 一次全选进来。保存后，消费进度和到账的抵扣会自动更新。"))),
     h("div", { class: "panel row" },
-      h("label", { class: "field" }, h("span", {}, "选择 CSV 文件（可多选）"), file),
-      h("details", {}, h("summary", {}, "或粘贴明细"), h("div", { style: "display:grid;gap:8px;margin-top:8px" }, ta, h("div", { class: "actions" }, addPaste)))),
+      h("label", { class: "field" }, h("span", {}, T("选择 CSV 文件（可多选）")), file),
+      h("details", {}, h("summary", {}, T("怎么从网银导出 CSV？")), h("div", { class: "note", style: "display:grid;gap:6px;margin-top:8px" },
+        h("span", {}, T("Chase：登录 → 点卡 → 交易列表旁的下载图标 → 文件类型选 CSV（默认是 QFX）。几张 Chase 卡分别导出。")),
+        h("span", {}, T("Amex：Statements & Activity → 选日期范围 → Download → CSV。")),
+        h("span", {}, T("Citi：卡的交易页 → 表格旁的 Download / Export → CSV。")),
+        h("span", {}, T("Discover：Activity → 下载交易（不是 PDF 账单）→ CSV。")),
+        h("span", {}, T("各家菜单经常改版，以上按第三方教程整理，找不到时搜「下载交易」或 Download。")))),
+      h("details", {}, h("summary", {}, T("或粘贴明细")), h("div", { style: "display:grid;gap:8px;margin-top:8px" }, ta, h("div", { class: "actions" }, addPaste)))),
     h("div", { id: "rv-pending" }), status, h("div", { id: "rv-result" }), h("div", { id: "rv-history" })));
   renderPending(); renderResults(); renderReviewHistory();
 }
@@ -985,23 +1366,23 @@ function renderPending() {
   const box = $("#rv-pending"); if (!box) return; box.replaceChildren();
   if (!PENDING.length) return;
   const list = h("div", { class: "panel rows" }, PENDING.map((p, i) => {
-    const sel = h("select", { id: "pd-card-" + i, "aria-label": "哪张卡", onchange: (e) => {
+    const sel = h("select", { id: "pd-card-" + i, "aria-label": T("哪张卡"), onchange: (e) => {
       p.card = e.target.value;
       // Remember a Chase card's last 4 from the filename so the next import is matched automatically.
       const l4 = (p.name.match(/chase\D*(\d{4})/i) || [])[1];
       if (l4 && ["mar", "ihg", "ips", "fr"].includes(p.card)) { CFG.last4[p.card] = l4; saveCfg(); }
       renderPending();
     } },
-      h("option", { value: "", selected: !p.card }, "选择卡…"), Object.entries(CARDS).map(([k, c]) => h("option", { value: k, selected: p.card === k }, c.short)));
-    const mo = h("input", { type: "month", id: "pd-month-" + i, value: p.month || "", "aria-label": "月份", onchange: (e) => { p.month = e.target.value; } });
+      h("option", { value: "", selected: !p.card }, T("选择卡…")), Object.entries(CARDS).map(([k, c]) => h("option", { value: k, selected: p.card === k }, c.short)));
+    const mo = h("input", { type: "month", id: "pd-month-" + i, value: p.month || "", "aria-label": T("月份"), onchange: (e) => { p.month = e.target.value; } });
     return h("div", { class: "row" },
-      h("div", { class: "row-head" }, h("h3", { style: "overflow-wrap:anywhere" }, p.name), h("button", { class: "small ghost", onclick: () => { PENDING.splice(i, 1); renderPending(); } }, "移除")),
-      h("span", { class: "note" }, `${p.parsed.txns.length} 行交易` + (p.card ? "" : "。没认出是哪张卡，请选一下。")),
+      h("div", { class: "row-head" }, h("h3", { style: "overflow-wrap:anywhere" }, p.name), h("button", { class: "small ghost", onclick: () => { PENDING.splice(i, 1); renderPending(); } }, T("移除"))),
+      h("span", { class: "note" }, T`${p.parsed.txns.length} 行交易` + (p.card ? "" : T("。没认出是哪张卡，请选一下。"))),
       h("div", { class: "grid2" }, sel, mo));
   }));
   const ready = PENDING.every((p) => p.card && p.month && p.parsed.txns.length);
-  const go = h("button", { class: "primary", id: "rv-go", disabled: !ready, onclick: () => runAll(go) }, SAMPLE ? `让 Claude 分析 ${PENDING.length} 份账单` : `分析 ${PENDING.length} 份账单（本地关键词）`);
-  box.append(h("section", {}, h("h3", {}, "待分析"), list, h("div", { class: "actions" }, go, SAMPLE ? null : h("span", { class: "note" }, "未连接 Claude，用关键词粗分类。"))));
+  const go = h("button", { class: "primary", id: "rv-go", disabled: !ready, onclick: () => runAll(go) }, SAMPLE ? T`让 Claude 分析 ${PENDING.length} 份账单` : T`分析 ${PENDING.length} 份账单（本地关键词）`);
+  box.append(h("section", {}, h("h3", {}, T("待分析")), list, h("div", { class: "actions" }, go, SAMPLE ? null : h("span", { class: "note" }, T("未连接 Claude，用关键词粗分类。")))));
 }
 async function runAll(btn) {
   const status = $("#rv-status"); status.hidden = false; btn.disabled = true;
@@ -1010,7 +1391,7 @@ async function runAll(btn) {
     const base = p.parsed.txns.map((t) => localClassify(t, p.card));
     let txns = base, insights = [], source = "local";
     if (SAMPLE) {
-      status.textContent = `Claude 正在分类第 ${n + 1}/${PENDING.length} 份（${CARDS[p.card].short}）…`;
+      status.textContent = T`Claude 正在分类第 ${n + 1}/${PENDING.length} 份（${CARDS[p.card].short}）…`;
       try {
         const res = await SAMPLE.json(claudePrompt(p.parsed.txns, p.card, p.month), { modelTier: "default" });
         if (res && Array.isArray(res.txns)) {
@@ -1027,7 +1408,7 @@ async function runAll(btn) {
   }
   PENDING = [];
   const n = RESULTS.reduce((s, r) => s + r.rows.length, 0), c = RESULTS.reduce((s, r) => s + r.credits.length, 0);
-  status.textContent = `识别出 ${n} 笔消费、${c} 笔福利抵扣。分类不对的可以在下面改，确认后点“全部保存”。`;
+  status.textContent = T`识别出 ${n} 笔消费、${c} 笔福利抵扣。分类不对的可以在下面改，确认后点“全部保存”。`;
   renderPending(); renderResults();
 }
 function renderResults() {
@@ -1035,7 +1416,7 @@ function renderResults() {
   if (!RESULTS.length) return;
   RESULTS.forEach((R, i) => { const c = h("div", { style: "display:grid;gap:18px" }); box.append(c); renderResult(R, true, c); });
   const save = h("button", { class: "primary", id: "rv-save", onclick: async () => {
-    save.disabled = true; save.textContent = "保存中…";
+    save.disabled = true; save.textContent = T("保存中…");
     for (const R of RESULTS) {
       const key = R.month + "_" + R.card;
       R.contrib = contributions(R);
@@ -1047,27 +1428,27 @@ function renderResults() {
       await saveReview(key);
     }
     RESULTS = []; renderAll(); renderResults(); renderReviewHistory();
-    const st = $("#rv-status"); st.hidden = false; st.textContent = "已保存，进度和抵扣已更新。";
-  } }, "全部保存并更新进度");
-  box.append(h("div", { class: "actions" }, save, h("span", { class: "note" }, "同一张卡同一个月重复保存会覆盖，不会重复累加。")));
+    const st = $("#rv-status"); st.hidden = false; st.textContent = T("已保存，进度和抵扣已更新。");
+  } }, T("全部保存并更新进度"));
+  box.append(h("div", { class: "actions" }, save, h("span", { class: "note" }, T("同一张卡同一个月重复保存会覆盖，不会重复累加。"))));
 }
 function renderResult(R, editable, box = $("#rv-result")) {
   box.replaceChildren();
   const eff = R.optimal > 0 ? R.earned / R.optimal : 1;
   box.append(h("section", {},
-    h("h2", {}, `${R.month} · ${CARDS[R.card]?.short || "混合"}`),
+    h("h2", {}, `${R.month} · ${CARDS[R.card]?.short || T("混合")}`),
     h("div", { class: "figs" },
-      h("div", { class: "panel fig" }, h("span", { class: "label" }, "消费"), h("b", {}, "$" + fmt0(R.spend))),
-      h("div", { class: "panel fig" }, h("span", { class: "label" }, "实际回报"), h("b", {}, "$" + fmt2(R.earned))),
-      h("div", { class: "panel fig" }, h("span", { class: "label" }, "最优可得"), h("b", {}, "$" + fmt2(R.optimal))),
-      h("div", { class: "panel fig" }, h("span", { class: "label" }, "少赚了"), h("b", { style: `color:var(${R.missed > 5 ? "--bad" : "--good"})` }, "$" + fmt2(R.missed)))),
-    h("span", { class: "note" }, `刷卡效率 ${(eff * 100).toFixed(0)}%。按你设定的每分价值折算成美元。`),
+      h("div", { class: "panel fig" }, h("span", { class: "label" }, T("消费")), h("b", {}, "$" + fmt0(R.spend))),
+      h("div", { class: "panel fig" }, h("span", { class: "label" }, T("实际回报")), h("b", {}, "$" + fmt2(R.earned))),
+      h("div", { class: "panel fig" }, h("span", { class: "label" }, T("最优可得")), h("b", {}, "$" + fmt2(R.optimal))),
+      h("div", { class: "panel fig" }, h("span", { class: "label" }, T("少赚了")), h("b", { style: `color:var(${R.missed > 5 ? "--bad" : "--good"})` }, "$" + fmt2(R.missed)))),
+    h("span", { class: "note" }, T`刷卡效率 ${(eff * 100).toFixed(0)}%。按你设定的每分价值折算成美元。`),
     R.credits?.length ? h("div", { class: "panel rows" }, R.credits.map((c) => h("div", { class: "txn" }, h("span", { class: "m" }, h("b", {}, BENEFITS.find((b) => b.id === c.creditFor)?.title || c.creditFor), " ", h("span", { class: "note" }, c.date)), h("span", { class: "num", style: "color:var(--good)" }, "+$" + fmt2(Math.abs(c.amount)))))) : null));
 
   // Category breakdown
   const cats = Object.entries(R.byCat).sort((a, b) => b[1] - a[1]);
   const maxC = cats[0]?.[1] || 1;
-  box.append(h("section", {}, h("h3", {}, "按类别"), h("div", { class: "panel row" },
+  box.append(h("section", {}, h("h3", {}, T("按类别")), h("div", { class: "panel row" },
     cats.map(([c, a]) => h("div", { class: "catbar" }, h("span", {}, CAT_LABEL[c] || c), bar(a / maxC), h("span", { class: "num", style: "text-align:right" }, "$" + fmt0(a)))))));
 
   const flagged = R.rows.filter((r) => r.flag);
@@ -1075,13 +1456,13 @@ function renderResult(R, editable, box = $("#rv-result")) {
   const ok = R.rows.filter((r) => r.missed < 0.5);
 
   if (R.insights?.length || flagged.length) {
-    box.append(h("section", {}, h("h3", {}, "值得问一句的消费"), h("div", { class: "panel rows" },
+    box.append(h("section", {}, h("h3", {}, T("值得问一句的消费")), h("div", { class: "panel rows" },
       (R.insights || []).map((s) => h("div", { class: "alert info" }, h("span", { class: "stripe" }), h("div", {}, h("span", {}, s)))),
       flagged.map((r) => txnRow(r, R, editable, true)))));
   }
-  box.append(h("section", {}, h("div", { class: "row-head" }, h("h3", {}, `可优化：用错卡 ${bad.length} 笔`), h("span", { class: "chip bad" }, "−$" + fmt2(bad.reduce((s, r) => s + r.missed, 0)))),
-    bad.length ? h("div", { class: "panel rows" }, bad.map((r) => txnRow(r, R, editable))) : h("div", { class: "status" }, "这个月每笔都刷对了卡。")));
-  box.append(h("details", {}, h("summary", {}, `合理：${ok.length} 笔`), h("div", { class: "panel rows", style: "margin-top:8px" }, ok.map((r) => txnRow(r, R, editable)))));
+  box.append(h("section", {}, h("div", { class: "row-head" }, h("h3", {}, T`可优化：用错卡 ${bad.length} 笔`), h("span", { class: "chip bad" }, "−$" + fmt2(bad.reduce((s, r) => s + r.missed, 0)))),
+    bad.length ? h("div", { class: "panel rows" }, bad.map((r) => txnRow(r, R, editable))) : h("div", { class: "status" }, T("这个月每笔都刷对了卡。"))));
+  box.append(h("details", {}, h("summary", {}, T`合理：${ok.length} 笔`), h("div", { class: "panel rows", style: "margin-top:8px" }, ok.map((r) => txnRow(r, R, editable)))));
 
 }
 function stripReview(R) {
@@ -1089,30 +1470,30 @@ function stripReview(R) {
     rows: R.rows.map((r) => ({ date: r.date || "", merchant: r.merchant || "", amount: r.amount, category: r.category, foreign: !!r.foreign, card: r.card, flag: r.flag || null, note: r.note || "", bestCard: r.bestCard, usedVal: r.usedVal, bestVal: r.bestVal, missed: r.missed })) };
 }
 function txnRow(r, R, editable, showFlag) {
-  const flagLabel = { fee: "费用", interest: "利息", subscription: "订阅", duplicate: "疑似重复", unusual: "异常" };
+  const flagLabel = { fee: T("费用"), interest: T("利息"), subscription: T("订阅"), duplicate: T("疑似重复"), unusual: T("异常") };
   const right = h("span", { class: "num" }, "$" + fmt2(r.amount));
-  const sel = editable ? h("select", { "aria-label": "改分类", style: "width:auto;min-height:30px;padding:2px 6px;font-size:13px", onchange: (e) => {
+  const sel = editable ? h("select", { "aria-label": T("改分类"), style: "width:auto;min-height:30px;padding:2px 6px;font-size:13px", onchange: (e) => {
     r.category = e.target.value; const re = evaluate(R.rows.map((x) => ({ ...x })).concat(R.credits || []), R.month); Object.assign(R, re); renderResult(R, true, sel.closest("#rv-result > div"));
   } }, CAT_ENUM.filter((c) => c !== "payment" && c !== "refund").map((c) => h("option", { value: c, selected: c === r.category }, CAT_LABEL[c]))) : h("span", { class: "chip" }, CAT_LABEL[r.category] || r.category);
   const usedTxt = r.card ? `${CARDS[r.card].short} ${pctS(r.usedPct ?? 0)}` : "";
   let advice;
-  if (r.missed >= 0.5) advice = `应该刷 ${CARDS[r.bestCard].short}（${pctS(r.bestPct)}），少赚 $${fmt2(r.missed)}${r.bestNotes?.length ? "。" + r.bestNotes[0] : ""}`;
+  if (r.missed >= 0.5) advice = T`应该刷 ${CARDS[r.bestCard].short}（${pctS(r.bestPct)}），少赚 $${fmt2(r.missed)}${r.bestNotes?.length ? T("。") + r.bestNotes[0] : ""}`;
   else advice = `${usedTxt} ✓`;
   return h("div", { class: "txn" },
-    h("span", { class: "m" }, h("b", {}, r.merchant || "(未知商户)"), " ", h("span", { class: "note" }, r.date || "")), right,
-    h("div", { class: "chips", style: "grid-column:1/-1;align-items:center" }, sel, r.foreign ? h("span", { class: "chip warn" }, "海外") : null,
+    h("span", { class: "m" }, h("b", {}, r.merchant || T("(未知商户)")), " ", h("span", { class: "note" }, r.date || "")), right,
+    h("div", { class: "chips", style: "grid-column:1/-1;align-items:center" }, sel, r.foreign ? h("span", { class: "chip warn" }, T("海外")) : null,
       showFlag && r.flag ? h("span", { class: "chip bad" }, flagLabel[r.flag] || r.flag) : null),
     h("span", { class: "note" }, showFlag && r.note ? r.note : advice));
 }
 function renderReviewHistory() {
   const box = $("#rv-history"); if (!box) return; box.replaceChildren();
   const list = Object.entries(REVIEWS).filter(([, r]) => r).sort((a, b) => b[0].localeCompare(a[0]));
-  if (!list.length) { box.append(h("section", {}, h("h3", {}, "历史复盘"), h("div", { class: "status" }, "还没有保存的复盘。每月账单出来后把 CSV 选进来分析，再点“全部保存并更新进度”。"))); return; }
-  box.append(h("section", {}, h("h3", {}, "历史复盘"), h("div", { class: "panel rows" }, list.map(([k, r]) => {
+  if (!list.length) { box.append(h("section", {}, h("h3", {}, T("历史复盘")), h("div", { class: "status" }, T("还没有保存的复盘。每月账单出来后把 CSV 选进来分析，再点“全部保存并更新进度”。")))); return; }
+  box.append(h("section", {}, h("h3", {}, T("历史复盘")), h("div", { class: "panel rows" }, list.map(([k, r]) => {
     const eff = r.optimal > 0 ? r.earned / r.optimal : 1;
     return h("div", { class: "row", role: "button", tabindex: "0", style: "cursor:pointer", onclick: () => { renderResult({ ...r, rows: r.rows.map((x) => ({ ...x, usedPct: x.card ? valuePct(x.card, x.category, D(r.month + "-15"), { foreign: x.foreign, historical: true }).pct : null, bestPct: valuePct(x.bestCard, x.category, D(r.month + "-15"), { foreign: x.foreign, historical: true }).pct })) }, false); $("#rv-result").scrollIntoView({ behavior: "smooth" }); } },
-      h("div", { class: "row-head" }, h("span", {}, h("b", {}, r.month), " ", cardTag(r.card)), h("span", { class: "chip " + (eff >= 0.9 ? "good" : eff >= 0.75 ? "warn" : "bad") }, `效率 ${(eff * 100).toFixed(0)}%`)),
-      h("span", { class: "note num" }, `消费 $${fmt0(r.spend)} · 回报 $${fmt2(r.earned)} · 少赚 $${fmt2(r.missed)}`));
+      h("div", { class: "row-head" }, h("span", {}, h("b", {}, r.month), " ", cardTag(r.card)), h("span", { class: "chip " + (eff >= 0.9 ? "good" : eff >= 0.75 ? "warn" : "bad") }, T`效率 ${(eff * 100).toFixed(0)}%`)),
+      h("span", { class: "note num" }, T`消费 $${fmt0(r.spend)} · 回报 $${fmt2(r.earned)} · 少赚 $${fmt2(r.missed)}`));
   }))));
 }
 
@@ -1123,15 +1504,15 @@ function renderSettings() {
   const v = $("#view-settings"); v.replaceChildren();
   const num = (id, val, on, attrs = {}) => h("input", { id, type: "number", inputmode: "decimal", step: attrs.step || "1", min: "0", value: String(val ?? 0), style: "width:100%", onchange: (e) => { on(parseFloat(e.target.value) || 0); saveCfg(); renderUse(); renderPerks(); } });
 
-  v.append(h("p", { class: "note" }, "这里只放很少改的设置。5% 激活、额度、消费进度、每分价值都能在「刷哪张」和「羊毛」里点数字直接改。"));
+  v.append(h("p", { class: "note" }, T("这里只放很少改的设置。5% 激活、额度、消费进度、每分价值都能在「刷哪张」和「羊毛」里点数字直接改。")));
   const auToggle = (k, who, label) => switchBtn((CFG.canUse[who] || []).includes(k), label, (x) => setCfg(() => {
     const set = new Set(CFG.canUse[who] || []); x ? set.add(k) : set.delete(k); CFG.canUse = { ...CFG.canUse, [who]: [...set] };
   }));
-  v.append(h("section", {}, h("h2", {}, "附属卡：谁能刷哪张"), h("div", { class: "panel row" },
-    h("span", { class: "note" }, "「刷哪张」顶部选「我 / 老公 / 一起」时，只在这个人能刷的卡里推荐。有附属卡的在这里打开。"),
+  v.append(h("section", {}, h("h2", {}, T("附属卡：谁能刷哪张")), h("div", { class: "panel row" },
+    h("span", { class: "note" }, T("「刷哪张」顶部选「我 / 老公 / 一起」时，只在这个人能刷的卡里推荐。有附属卡的在这里打开。")),
     Object.keys(CARDS).map((k) => CARDS[k].owner
-      ? auToggle(k, "me", `${CARDS[k].short}（老公的）· 我有附属卡`)
-      : auToggle(k, "spouse", `${CARDS[k].short} · 老公有附属卡`)))));
+      ? auToggle(k, "me", T`${CARDS[k].short}（老公的）· 我有附属卡`)
+      : auToggle(k, "spouse", T`${CARDS[k].short} · 老公有附属卡`)))));
   const q = quarterKey(NOW);
   const qChips = (get, set) => h("div", { class: "chips" }, CATS.filter(([c]) => c !== "foreign").map(([c, l]) => {
     const on = get().includes(c);
@@ -1140,40 +1521,52 @@ function renderSettings() {
 
   v.append(h("section", {}, h("h2", {}, "Discover"), h("div", { class: "panel row" },
     h("select", { id: "st-dv", onchange: (e) => setCfg(() => { CFG.discoverVariant = e.target.value; }) },
-      [["cashback", "Discover it Cash Back（5% 轮换 + 1%）"], ["miles", "Discover it Miles（1.5x）"], ["chrome", "Discover it Chrome（2% 加油/餐厅）"]]
+      [["cashback", T("Discover it Cash Back（5% 轮换 + 1%）")], ["miles", T("Discover it Miles（1.5x）")], ["chrome", T("Discover it Chrome（2% 加油/餐厅）")]]
         .map(([k, t]) => h("option", { value: k, selected: CFG.discoverVariant === k }, t))),
-    switchBtn(CFG.disMatch, "开卡第一年（Cashback Match 翻倍）", (x) => setCfg(() => { CFG.disMatch = x; })),
-    CFG.discoverVariant === "cashback" ? [h("span", { class: "label" }, `${q} 5% 类别`), qChips(() => discoverCats(q), (v2) => { CFG.discoverQ[q] = v2; }),
-      h("span", { class: "note" }, "2026 Q4 已预设为餐厅、娱乐、水电网费。每季 Discover 公布新类别后在这里改。")] : null)));
+    switchBtn(CFG.disMatch, T("开卡第一年（Cashback Match：第一年返现翻倍）"), (x) => setCfg(() => { CFG.disMatch = x; })),
+    CFG.discoverVariant === "cashback" ? [h("span", { class: "label" }, T`${q} 5% 类别`), qChips(() => discoverCats(q), (v2) => { CFG.discoverQ[q] = v2; }),
+      h("span", { class: "note" }, T("2026 Q4 已预设为餐厅、娱乐、水电网费。每季 Discover 公布新类别后在这里改。"))] : null)));
 
   v.append(h("section", {}, h("h2", {}, "Chase Freedom"), h("div", { class: "panel row" },
     h("select", { id: "st-frv", onchange: (e) => setCfg(() => { CFG.freedomVariant = e.target.value; }) },
-      [["unlimited", "Freedom Unlimited（1.5% + 3% 餐厅/药店）"], ["flex", "Freedom Flex（5% 轮换 + 3% 餐厅/药店）"], ["legacy", "Chase Freedom（老款，5% 轮换 + 1%）"]]
+      [["unlimited", T("Freedom Unlimited（1.5% + 3% 餐厅/药店）")], ["flex", T("Freedom Flex（5% 轮换 + 3% 餐厅/药店）")], ["legacy", T("Chase Freedom（老款，5% 轮换 + 1%）")]]
         .map(([k, t]) => h("option", { value: k, selected: CFG.freedomVariant === k }, t))),
-    CFG.freedomVariant !== "unlimited" ? [h("span", { class: "label" }, `${q} 5% 类别`), qChips(() => freedomCats(q), (v2) => { CFG.freedomQ[q] = v2; })] : null,
-    h("span", { class: "note" }, "三款都有 3% 海外交易手续费。"))));
+    CFG.freedomVariant !== "unlimited" ? [h("span", { class: "label" }, T`${q} 5% 类别`), qChips(() => freedomCats(q), (v2) => { CFG.freedomQ[q] = v2; })] : null,
+    h("span", { class: "note" }, T("三款都有 3% 海外交易手续费。")))));
 
-  v.append(h("section", {}, h("h2", {}, "Chase 卡号末四位"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
+  v.append(h("section", {}, h("h2", {}, T("Chase 卡号末四位")), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     ["mar", "ihg", "ips", "fr", "ua"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
       h("input", { id: "l4-" + k, inputmode: "numeric", maxlength: "4", value: CFG.last4[k] || "", placeholder: "1234", onchange: (e) => { CFG.last4[k] = e.target.value.replace(/\D/g, "").slice(0, 4); saveCfg(); } })))),
-    h("span", { class: "note" }, "几张 Chase 卡导出的 CSV 格式一样，靠文件名里的末四位区分。第一次导入时选一下卡，之后会自动记住。"))));
-  const months = [["0", "未设置"], ...Array.from({ length: 12 }, (_, i) => [String(i + 1), `${i + 1} 月`])];
-  v.append(h("section", {}, h("h2", {}, "开卡月份"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
+    h("span", { class: "note" }, T("几张 Chase 卡导出的 CSV 格式一样，靠文件名里的末四位区分。第一次导入时选一下卡，之后会自动记住。")))));
+  const months = [["0", T("未设置")], ...Array.from({ length: 12 }, (_, i) => [String(i + 1), T`${i + 1} 月`])];
+  v.append(h("section", {}, h("h2", {}, T("开卡月份")), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     ["hh", "ips", "ihg", "mar", "aa"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
       h("select", { id: "an-" + k, onchange: (e) => { CFG.anniv[k] = parseInt(e.target.value, 10); saveCfg(); renderAll(); } }, months.map(([val, t]) => h("option", { value: val, selected: String(CFG.anniv[k] || 0) === val }, t)))))),
-    h("span", { class: "note" }, "用于卡年度类福利（免房券、$20k 消费奖励）的周期。导入的账单里出现年费时会自动填上（年费一般在开卡周年那期账单收取，可能差一个月）。"))));
+    h("span", { class: "note" }, T("用于卡年度类福利（免房券、$20k 消费奖励）的周期。导入的账单里出现年费时会自动填上（年费一般在开卡周年那期账单收取，可能差一个月）。")))));
 
-  v.append(h("section", {}, h("h2", {}, "每分值多少（美分）"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
+  v.append(h("section", {}, h("h2", {}, T("每分值多少（美分）")), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     Object.keys(CFG.vals).map((c) => h("label", { class: "field" }, h("span", {}, CUR_LABEL[c]), num("val-" + c, CFG.vals[c], (x) => CFG.vals[c] = x, { step: "0.05" })))),
-    h("span", { class: "note" }, "默认值：Discover 和 Chase UR（只有 Freedom U，不能转点）按 1¢ 现金；AA、Hilton、IHG、Marriott 取 The Points Guy 2026 年 10 月估值。NerdWallet 的数不同（AA 1.7、Hilton 0.35、IHG 0.5–0.6、Marriott 0.7–0.8），按你自己的兑换习惯改。"))));
+    h("span", { class: "note" }, T("默认值：Discover 和 Chase UR（只有 Freedom U，不能转点）按 1¢ 现金；AA、Hilton、IHG、Marriott 取 The Points Guy 2026 年 10 月估值。NerdWallet 的数不同（AA 1.7、Hilton 0.35、IHG 0.5–0.6、Marriott 0.7–0.8），按你自己的兑换习惯改。")))));
 
-  v.append(h("section", {}, h("h2", {}, "一张免房券对你值多少（$）"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
-    [["hh", "Hilton 免房券"], ["ips", "IHG Select 免房券（≤60k）"], ["ihg", "IHG Premier 免房券（≤40k）"], ["mar", "Marriott 免房券"]].map(([k, l]) => h("label", { class: "field" }, h("span", {}, l), num("fn-" + k, CFG.fnValue[k], (x) => CFG.fnValue[k] = x)))),
-    h("span", { class: "note" }, "IHG 和 Marriott = 券面上限 × 每分价值（上限值，订便宜酒店就用不满）。Hilton 券不设上限，各评测估 $200–$521，取 $300。用来算“冲消费目标”的额外回报。"))));
+  v.append(h("section", {}, h("h2", {}, T("一张免房券对你值多少（$）")), h("div", { class: "panel row" }, h("div", { class: "grid2" },
+    [["hh", T("Hilton 免房券")], ["ips", T("IHG Select 免房券（≤60k）")], ["ihg", T("IHG Premier 免房券（≤40k）")], ["mar", T("Marriott 免房券")]].map(([k, l]) => h("label", { class: "field" }, h("span", {}, l), num("fn-" + k, CFG.fnValue[k], (x) => CFG.fnValue[k] = x)))),
+    h("span", { class: "note" }, T("IHG 和 Marriott = 券面上限 × 每分价值（上限值，订便宜酒店就用不满）。Hilton 券不设上限，各评测估 $200–$521，取 $300。用来算“冲消费目标”的额外回报。")))));
 }
 
 // ---------------------------------------------------------------------------
-function renderAll() { renderUse(); renderPerks(); renderSettings(); renderSheet(); if (!$("#rv-text")) renderReview(); }
+function renderHeader() {
+  document.documentElement.lang = LANG === "en" ? "en" : "zh-CN";
+  $("#app-title").textContent = T("羊毛账本");
+  document.querySelectorAll("[data-zh]").forEach((el) => { el.textContent = T(el.dataset.zh); });
+  $("#today").textContent = NOW.toLocaleDateString(LANG === "en" ? "en-US" : "zh-CN", { year: "numeric", month: LANG === "en" ? "short" : "long", day: "numeric", weekday: "short" });
+  document.querySelector("nav.tabs").setAttribute("aria-label", LANG === "en" ? "Main" : "主导航");
+  const lb = $("#lang-btn"); lb.textContent = LANG === "en" ? "中文" : "EN"; lb.setAttribute("aria-label", LANG === "en" ? "切换到中文" : "Switch to English");
+  const bar = $("#who-bar"); bar.replaceChildren(
+    h("span", { class: "note" }, T("看谁的：")),
+    h("div", { class: "seg", role: "radiogroup", "aria-label": T("看谁的卡") }, ["me", "spouse", "both"].map((w) =>
+      h("button", { type: "button", role: "radio", "aria-checked": String(CFG.who === w), onclick: () => setCfg(() => { CFG.who = w; }) }, WHO_LABEL[w]))));
+}
+function renderAll() { renderHeader(); renderUse(); renderPerks(); renderSettings(); renderSheet(); if (!$("#rv-text")) renderReview(); }
 function showTab(t) {
   document.querySelectorAll("[data-view]").forEach((el) => { el.hidden = el.id !== "view-" + t; });
   document.querySelectorAll("nav.tabs button").forEach((b) => { if (b.dataset.tab === t) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
@@ -1181,7 +1574,12 @@ function showTab(t) {
   window.scrollTo(0, 0);
 }
 document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
-$("#today").textContent = NOW.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
+$("#lang-btn").addEventListener("click", () => {
+  LANG = LANG === "en" ? "zh" : "en";
+  try { localStorage.setItem("ymzb:lang", LANG); } catch {}
+  defineText(); renderAll(); renderReview();
+});
+renderHeader();
 initStore();
 renderReview();
 let startTab = "use"; try { startTab = localStorage.getItem("ymzb:tab") || "use"; } catch {}
