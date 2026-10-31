@@ -207,6 +207,12 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"处理好了": "Done",
+"Boundless 续卡：留还是降级": "Boundless renewal: keep or downgrade",
+"$95 年费换一张 35k 免房券（12 个月有效）。2027 年至少住一晚 Marriott 就留；一晚都不住就问 Chase 能否降级成无年费卡。": "$95 fee for a 35k free night (valid 12 months). Keep it if you'll stay at least one Marriott night in 2027; if not, ask Chase about downgrading to a no-fee card.",
+"申请 Marriott Bonvoy Brilliant（大聪明卡）": "Apply for Marriott Bonvoy Brilliant",
+"Boundless 开卡礼 2026/3/14 到账，满 24 个月后才有大聪明卡开卡礼资格。提交前看 Amex 的资格弹窗；批卡即得白金。": "The Boundless bonus posted 3/14/2026; Brilliant's bonus needs 24 months after that. Check Amex's eligibility pop-up before submitting. Platinum comes on approval.",
+
 "现在只有 {} 一张卡可以刷，所有消费都用它。有附属卡的话，在「设置」里打开后这里会给出更好的选择。": "Only {} can be used right now, so put everything on it. Turn on any authorized-user cards in Settings to get better options here.",
 "今天过期": "expires today",
 "明天过期": "expires tomorrow",
@@ -894,6 +900,12 @@ function todos() {
     out.push({ id: "sub-" + ck, days: Math.min(sb.days, 20), t: T`${CARDS[ck].short} 开卡礼还差 $${fmt0(sb.left)}`, d: T`${sb.by} 前要刷满 $${fmt0(sb.target)}，还剩 ${sb.days} 天。达标前日常消费优先刷这张。`,
       actions: [[T("已达标"), () => setCfg(() => { CFG.subs[ck].done = true; })]] });
   }
+  // Dated plans: shown from `from` until marked done.
+  for (const pl of PLANS().filter((x) => mine.includes(x.card))) {
+    const key = "plan_" + pl.id, u = USAGE[key] || {};
+    if (u.status === "done" || NOW < D(pl.from)) continue;
+    out.push({ id: key, days: Math.max(0, daysLeft(D(pl.date))), t: pl.t, d: `${pl.date} · ${pl.d}`, actions: [[T("处理好了"), () => setUsage(key, { status: "done" })]] });
+  }
   for (const k of ["dis", "fr"].filter((x) => mine.includes(x))) {
     const on = k === "dis" ? CFG.discoverVariant === "cashback" : CFG.freedomVariant !== "unlimited";
     const cats = k === "dis" ? discoverCats(q) : freedomCats(q);
@@ -935,6 +947,10 @@ function todoRow(t) {
   row.append(acts);
   return row;
 }
+const PLANS = () => [
+  { id: "mar_renew_2027", card: "mar", from: "2026-12-01", date: "2027-01-22", t: T("Boundless 续卡：留还是降级"), d: T("$95 年费换一张 35k 免房券（12 个月有效）。2027 年至少住一晚 Marriott 就留；一晚都不住就问 Chase 能否降级成无年费卡。") },
+  { id: "brilliant_2028", card: "mar", from: "2028-02-01", date: "2028-03-15", t: T("申请 Marriott Bonvoy Brilliant（大聪明卡）"), d: T("Boundless 开卡礼 2026/3/14 到账，满 24 个月后才有大聪明卡开卡礼资格。提交前看 Amex 的资格弹窗；批卡即得白金。") },
+];
 const GOALS = () => [
   { card: "hh", t: T("Aspire 自然年 $30k → 第 2 张免房券"), key: "hhCal", at: 30000, bonus: CFG.fnValue.hh },
   { card: "hh", t: T("Aspire 自然年 $60k → 第 3 张免房券"), key: "hhCal", at: 60000, bonus: CFG.fnValue.hh, after: 30000 },
