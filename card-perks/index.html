@@ -208,6 +208,9 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"打电话给 Citi：AA 卡降级成 MileUp": "Call Citi: downgrade the AA card to MileUp",
+"不冲 AA 身份了，留着它只剩今年剩下的几个月福利。问 Citi 能否降级成无年费的 MileUp 并按比例退今年的 $99 年费；降级而不是销卡，可以保住卡龄，AA 里程也继续有活动不会过期。": "You're no longer chasing AA status, so keeping it only buys the rest of this card year's perks. Ask Citi to downgrade to the no-fee MileUp and prorate a refund of this year's $99 fee. Downgrading instead of closing keeps the account age and keeps your AA miles active so they don't expire.",
+
 "Apple 返现": "Apple Daily Cash",
 "Apple / App Store": "Apple / App Store",
 "需用 Apple Pay 付款；刷实体卡只有 1%": "Pay with Apple Pay; the physical card earns only 1%",
@@ -961,13 +964,12 @@ function todoRow(t) {
 }
 const PLANS = () => [
   { id: "mar_renew_2027", card: "mar", from: "2026-12-01", date: "2027-01-22", t: T("Boundless 续卡：留还是降级"), d: T("$95 年费换一张 35k 免房券（12 个月有效）。2027 年至少住一晚 Marriott 就留；一晚都不住就问 Chase 能否降级成无年费卡。") },
-  { id: "aa_renew_2027", card: "aa", from: "2027-06-15", date: "2027-08-01", t: T("Citi AA 续卡：留还是降级"), d: T("续卡年费变 $150。2027 年还冲 AA 身份、或常飞 AA 国内要托运就留；都不需要就问 Citi 降级成无年费的 MileUp。") },
+  { id: "aa_downgrade", card: "aa", from: "2026-11-01", date: "2026-11-30", t: T("打电话给 Citi：AA 卡降级成 MileUp"), d: T("不冲 AA 身份了，留着它只剩今年剩下的几个月福利。问 Citi 能否降级成无年费的 MileUp 并按比例退今年的 $99 年费；降级而不是销卡，可以保住卡龄，AA 里程也继续有活动不会过期。") },
   { id: "brilliant_2028", card: "mar", from: "2028-02-01", date: "2028-03-15", t: T("申请 Marriott Bonvoy Brilliant（大聪明卡）"), d: T("Boundless 开卡礼 2026/3/14 到账，满 24 个月后才有大聪明卡开卡礼资格。提交前看 Amex 的资格弹窗；批卡即得白金。") },
 ];
 const GOALS = () => [
   { card: "hh", t: T("Aspire 自然年 $30k → 第 2 张免房券"), key: "hhCal", at: 30000, bonus: CFG.fnValue.hh },
   { card: "hh", t: T("Aspire 自然年 $60k → 第 3 张免房券"), key: "hhCal", at: 60000, bonus: CFG.fnValue.hh, after: 30000 },
-  { card: "aa", t: T("Citi AA 卡年度 $20k → $125 机票折扣"), key: "aaYear", at: 20000, bonus: 125 },
   { card: "ips", t: T("IHG Select 自然年 $15k → 20k 分"), key: "ipsCal", at: 15000, bonus: 20000 * CFG.vals.IHG / 100, verify: true },
   { card: "ips", t: T("IHG Select 自然年 $25k → Diamond"), key: "ipsCal", at: 25000, bonus: 0 },
   { card: "ihg", t: T("IHG Premier 卡年度 $20k → $100 + 10k 分"), key: "ihgYear", at: 20000, bonus: 100 + 10000 * CFG.vals.IHG / 100 },
