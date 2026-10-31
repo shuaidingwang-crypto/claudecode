@@ -107,9 +107,13 @@ textarea { width: 100%; min-height: 150px; font: 13px/1.45 var(--f-mono); resize
 .alert.info .stripe { background: var(--accent); }
 .alert > div:last-child { min-width: 0; display: grid; gap: 2px; }
 /* Summary figures */
-.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
 .fig { padding: 12px 14px; display: grid; gap: 2px; }
-.fig b { font: 500 22px var(--f-mono); font-variant-numeric: tabular-nums; }
+.fig b { font: 500 clamp(17px, 5vw, 22px) var(--f-mono); font-variant-numeric: tabular-nums; }
+.fig { padding: 10px 12px; }
+.banner { display: flex; gap: 10px; align-items: center; justify-content: space-between; width: 100%; text-align: left; padding: 10px 12px; border-radius: var(--r); background: var(--warn-soft); color: var(--fg); border: 0; }
+.banner.bad { background: var(--bad-soft); }
+.banner b { font-weight: 600; }
 /* Review */
 .txn { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 10px 14px; font-size: 14px; }
 .txn .m { min-width: 0; overflow-wrap: anywhere; }
@@ -117,6 +121,39 @@ textarea { width: 100%; min-height: 150px; font: 13px/1.45 var(--f-mono); resize
 .catbar { display: grid; grid-template-columns: 7.5em 1fr 5.5em; gap: 8px; align-items: center; font-size: 13px; }
 .catbar .bar { height: 10px; }
 .status { font-size: 13px; padding: 10px 14px; border-radius: var(--r); background: var(--sunk); color: var(--muted); }
+/* Tiles + sheet + inline edit */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 560px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.tile { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); min-height: 92px; align-content: start; }
+.tile:hover { border-color: var(--accent); }
+.tile-name { font-size: 13px; color: var(--muted); font-weight: 500; }
+.tile-pct { font: 500 22px/1.15 var(--f-mono); font-variant-numeric: tabular-nums; }
+.tile-card .cardtag { font-size: 13px; }
+.tile-hint { font-size: 11.5px; color: var(--warn); font-weight: 600; }
+.edit { all: unset; cursor: pointer; font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); border-bottom: 1px dashed var(--accent); padding: 0 1px; }
+.edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.edit-input { width: 6.5em; min-height: 30px; padding: 2px 6px; font: 14px var(--f-mono); }
+.switch { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 4px 0; min-height: 32px; font-size: 13px; font-weight: 600; color: var(--fg); }
+.switch .knob { width: 34px; height: 20px; border-radius: 99px; background: var(--sunk); border: 1px solid var(--line); position: relative; flex: none; }
+.switch .knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: left .15s; }
+.switch[aria-checked="true"] .knob { background: var(--accent); border-color: var(--accent); }
+.switch[aria-checked="true"] .knob::after { left: 16px; background: var(--surface); }
+#sheet { position: fixed; inset: 0; z-index: 40; }
+.scrim { position: absolute; inset: 0; background: rgba(10, 14, 20, .45); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 82%; overflow-y: auto; background: var(--surface); border-radius: 16px 16px 0 0; display: grid; gap: 12px;
+  padding-top: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 640px; margin: 0 auto; }
+.ctrls { display: grid; gap: 6px; background: var(--sunk); border-radius: var(--r); padding: 10px 12px; }
+.ctrl { display: grid; gap: 2px; }
+.rank-row.best .pct { color: var(--good); }
+.todo { padding: 12px 14px; display: grid; gap: 8px; }
+.todo.urgent { box-shadow: inset 3px 0 0 var(--bad); }
+.todo-text { display: grid; gap: 2px; min-width: 0; }
+.card-sec > summary { list-style: none; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-sec > summary::-webkit-details-marker { display: none; }
+.card-sec > summary::after { content: "▾"; color: var(--muted); margin-left: auto; }
+.card-sec[open] > summary::after { content: "▴"; }
+.card-sec > .rows { border-top: 1px solid var(--line); }
+.card-sec .cardtag { white-space: normal; }
 /* Bottom nav */
 nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--line); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px); }
 nav.tabs .in { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); }
@@ -143,6 +180,7 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
   </main>
 </div>
 
+<div id="sheet" hidden></div>
 <nav class="tabs" aria-label="主导航">
   <div class="in">
     <button data-tab="use" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></svg>刷哪张</button>
@@ -429,90 +467,191 @@ function cardTag(k) { return h("span", { class: "cardtag" }, h("span", { class: 
 function bar(frac, cls = "") { return h("div", { class: "bar " + cls }, h("i", { style: `width:${Math.max(0, Math.min(1, frac)) * 100}%` })); }
 
 // ---------------------------------------------------------------------------
+// Inline editing
+// ---------------------------------------------------------------------------
+// A value that turns into an input on tap; saves on Enter or blur.
+function editNum(val, onSave, { prefix = "", suffix = "", step = "1", label = "", fmt = fmt0 } = {}) {
+  const btn = h("button", { class: "edit", type: "button", "aria-label": `修改${label}` }, prefix + fmt(val) + suffix);
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const inp = h("input", { type: "number", inputmode: "decimal", step, min: "0", value: String(val ?? 0), class: "edit-input", "aria-label": label });
+    let done = false;
+    const finish = (save) => {
+      if (done) return; done = true;
+      const x = parseFloat(inp.value);
+      if (save && isFinite(x) && x >= 0 && x !== val) onSave(x); else inp.replaceWith(btn);
+    };
+    inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") finish(true); if (ev.key === "Escape") finish(false); });
+    inp.addEventListener("blur", () => finish(true));
+    inp.addEventListener("click", (ev) => ev.stopPropagation());
+    btn.replaceWith(inp); inp.focus(); inp.select();
+  });
+  return btn;
+}
+function switchBtn(on, label, onToggle) {
+  return h("button", { class: "switch", type: "button", role: "switch", "aria-checked": String(!!on), onclick: (e) => { e.stopPropagation(); onToggle(!on); } },
+    h("span", { class: "knob" }), label);
+}
+function setCfg(fn) { fn(); saveCfg(); renderAll(); }
+
+// ---------------------------------------------------------------------------
 // View: 刷哪张
 // ---------------------------------------------------------------------------
-const openCats = new Set();
-function alerts() {
+const TILE_ORDER = ["dining", "grocery", "gas", "other", "transit", "flight_other", "flight_aa", "hotel_ihg", "hotel_hilton", "hotel_marriott", "hotel_other", "car_rental", "streaming", "utilities", "entertainment", "drugstore", "red_cross"];
+let ABROAD = false, SHEET = null, TODO_ALL = false, TODO_OPEN = null;
+
+// A 5% category that would win but is not activated yet.
+function pendingBonus(cat) {
+  const q = quarterKey(NOW);
+  if (CFG.discoverVariant === "cashback" && !CFG.disActivated[q] && discoverCats(q).includes(cat)) return { card: "dis", q, set: () => { CFG.disActivated[q] = true; } };
+  if (CFG.freedomVariant !== "unlimited" && !CFG.frActivated[q] && freedomCats(q).includes(cat)) return { card: "fr", q, set: () => { CFG.frActivated[q] = true; } };
+  return null;
+}
+function todos() {
   const out = [];
   const q = quarterKey(NOW);
-  if (CFG.freedomVariant !== "unlimited" && freedomCats(q).length && !CFG.frActivated[q]) {
-    const by = FREEDOM_ACTIVATE_BY[q];
-    out.push({ lvl: "bad", t: `Freedom ${q} 5% 还没激活`, d: `本季：${freedomCats(q).map((c) => CAT_LABEL[c]).join("、")}${by ? `，${by} 前激活` : ""}。激活后去设置里勾上。` });
-  }
-  if (CFG.discoverVariant === "cashback" && discoverCats(q).length && !CFG.disActivated[q]) {
-    out.push({ lvl: "bad", t: `Discover ${q} 5% 还没激活`, d: `本季：${discoverCats(q).map((c) => CAT_LABEL[c]).join("、")}。Discover 不补激活前的消费，越早越好。激活后去设置里勾上。` });
+  for (const k of ["dis", "fr"]) {
+    const on = k === "dis" ? CFG.discoverVariant === "cashback" : CFG.freedomVariant !== "unlimited";
+    const cats = k === "dis" ? discoverCats(q) : freedomCats(q);
+    const act = k === "dis" ? CFG.disActivated : CFG.frActivated;
+    if (on && cats.length && !act[q]) out.push({ id: "act-" + k, days: 0, t: `激活 ${CARDS[k].short} ${q} 5%`, d: `${cats.map((c) => CAT_LABEL[c]).join("、")}。激活前的消费不补。`,
+      actions: [["我已激活", () => setCfg(() => { act[q] = true; })]] });
   }
   for (const b of BENEFITS) {
     if (!b.amt || b.cert) continue;
-    const p = periodOf(b, NOW); const u = USAGE[b.id + "_" + p.key] || {};
+    const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
     if (u.status === "done" || u.status === "na") continue;
     const left = b.amt - (u.used || 0), dl = daysLeft(p.end);
-    if (left > 0 && dl <= 75) out.push({ lvl: dl <= 21 ? "bad" : "warn", t: `${CARDS[b.card].short}：${b.title} 还剩 $${fmt0(left)}`, d: `${p.label}，${dl} 天后过期。` });
+    if (left <= 0 || dl > 75) continue;
+    out.push({ id: key, days: dl, amt: left, t: `${CARDS[b.card].short} · ${b.title}`, d: `还剩 $${fmt0(left)}，${dl} 天后过期`, record: { b, key, used: u.used || 0 },
+      actions: [["用完了", () => setUsage(key, { used: b.amt, status: "done" })], ["不适用", () => setUsage(key, { status: "na" })]] });
   }
   for (const b of BENEFITS.filter((x) => x.cert)) {
-    const p = periodOf(b, NOW); const u = USAGE[b.id + "_" + p.key] || {};
+    const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
     if (u.status === "done" || u.status === "na" || !u.expires) continue;
     const dl = daysLeft(D(u.expires));
-    if (dl <= 90) out.push({ lvl: dl <= 30 ? "bad" : "warn", t: `${CARDS[b.card].short} 免房券 ${dl} 天后过期`, d: `到期 ${u.expires}。` });
+    if (dl <= 90) out.push({ id: key, days: dl, t: `${CARDS[b.card].short} 免房券`, d: `${dl} 天后过期（${u.expires}）`, actions: [["已订房", () => setUsage(key, { status: "done" })]] });
   }
-  if (NOW < AA_REFRESH) out.push({ lvl: "info", t: "Citi AA 年费 $99 → $150", d: "2027/1/24 起续卡生效，同时加 $100 机上抵扣、Walmart+、$150 机票折扣。续卡前再评估。" });
-  if (NOW < D("2027-12-31")) out.push({ lvl: "info", t: "IHG Premier 年费 $99 → $150", d: "老卡 2027 年续卡时生效；非 IHG 的广义旅行 5x 只到 2026/12/31。" });
-  return out;
+  return out.sort((a, b) => a.days - b.days || (b.amt || 0) - (a.amt || 0));
+}
+function todoRow(t) {
+  const row = h("div", { class: "todo" + (t.days <= 21 ? " urgent" : "") },
+    h("div", { class: "todo-text" }, h("h3", {}, t.t), h("span", { class: "note" }, t.d)));
+  const acts = h("div", { class: "actions" });
+  if (t.record) {
+    if (TODO_OPEN === t.id) {
+      const inp = h("input", { type: "number", inputmode: "decimal", step: "0.01", min: "0", placeholder: "金额", "aria-label": "这次用了多少", style: "width:6.5em" });
+      const ok = () => { const a = parseFloat(inp.value); if (!(a > 0)) return; const nu = Math.min(t.record.b.amt, t.record.used + a); TODO_OPEN = null; setUsage(t.record.key, { used: nu, status: nu >= t.record.b.amt ? "done" : "open" }); };
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") ok(); });
+      acts.append(inp, h("button", { class: "small primary", onclick: ok }, "记下"), h("button", { class: "small ghost", onclick: () => { TODO_OPEN = null; renderUse(); } }, "取消"));
+      setTimeout(() => inp.focus(), 0);
+    } else acts.append(h("button", { class: "small primary", onclick: () => { TODO_OPEN = t.id; renderUse(); } }, "记一笔"));
+  }
+  if (TODO_OPEN !== t.id) t.actions.forEach(([l, fn], i) => acts.append(h("button", { class: "small" + (!t.record && i === 0 ? " primary" : " ghost"), onclick: fn }, l)));
+  row.append(acts);
+  return row;
+}
+const GOALS = () => [
+  { card: "hh", t: "Aspire 自然年 $30k → 第 2 张免房券", key: "hhCal", at: 30000, bonus: CFG.fnValue.hh },
+  { card: "hh", t: "Aspire 自然年 $60k → 第 3 张免房券", key: "hhCal", at: 60000, bonus: CFG.fnValue.hh, after: 30000 },
+  { card: "aa", t: "Citi AA 卡年度 $20k → $125 机票折扣", key: "aaYear", at: 20000, bonus: 125 },
+  { card: "ips", t: "IHG Select 自然年 $15k → 20k 分", key: "ipsCal", at: 15000, bonus: 20000 * CFG.vals.IHG / 100, verify: true },
+  { card: "ips", t: "IHG Select 自然年 $25k → Diamond", key: "ipsCal", at: 25000, bonus: 0 },
+  { card: "ihg", t: "IHG Premier 卡年度 $20k → $100 + 10k 分", key: "ihgYear", at: 20000, bonus: 100 + 10000 * CFG.vals.IHG / 100 },
+];
+function goalRow(g) {
+  const spent = CFG.spend[g.key] || 0, base = g.after || 0;
+  const everyday = ranking("other", NOW).find((x) => x.card === g.card).pct;
+  const extra = g.bonus / (g.at - base) * 100;
+  return h("div", { class: "row" },
+    h("div", { class: "row-head" }, h("h3", {}, g.t), h("div", { class: "chips" }, g.verify ? h("span", { class: "chip warn" }, "待核实") : null, cardTag(g.card))),
+    bar((spent - base) / (g.at - base), spent >= g.at ? "good" : ""),
+    h("span", { class: "note" }, "已花 ", editNum(spent, (x) => setCfg(() => { CFG.spend[g.key] = x; }), { prefix: "$", label: "已花金额" }), ` / $${fmt0(g.at)}`,
+      spent >= g.at ? " · 已达标" : g.bonus ? ` · 达标后一般消费 ≈ ${(everyday + extra).toFixed(2)}%` : ""));
 }
 function renderUse() {
   const v = $("#view-use"); v.replaceChildren();
-  const al = alerts();
-  if (al.length) v.append(h("section", {}, h("h2", {}, "现在要注意"),
-    h("div", { class: "panel rows" }, al.map((a) => h("div", { class: "alert " + a.lvl }, h("span", { class: "stripe" }), h("div", {}, h("h3", {}, a.t), h("span", { class: "note" }, a.d)))))));
+  const tiles = h("div", { class: "tiles" }, TILE_ORDER.map((cat) => {
+    const r = ranking(cat, NOW, { foreign: ABROAD }), best = r[0], pend = pendingBonus(cat);
+    return h("button", { class: "tile", type: "button", "aria-haspopup": "dialog", onclick: () => openSheet(cat) },
+      h("span", { class: "tile-name" }, CAT_LABEL[cat]),
+      h("span", { class: "tile-pct num" }, pctS(best.pct)),
+      h("span", { class: "tile-card" }, cardTag(best.card)),
+      pend && !ABROAD ? h("span", { class: "tile-hint" }, `激活 ${CARDS[pend.card].short} 可得 5%`) : null);
+  }));
+  const td = todos();
+  const top = td[0];
+  v.append(h("section", {},
+    h("div", { class: "row-head" }, h("h2", {}, "今天刷哪张"), switchBtn(ABROAD, "在海外", (x) => { ABROAD = x; renderUse(); })),
+    top ? h("button", { class: "banner" + (top.days <= 21 ? " bad" : ""), onclick: () => $("#todo-sec")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+      h("span", {}, h("b", {}, top.t), h("span", { class: "note" }, " · " + top.d)), h("span", { class: "chip" }, `待办 ${td.length} ↓`)) : null,
+    tiles,
+    h("span", { class: "note" }, "点一格看所有卡的排名，倍数、每分价值、额度都能在里面直接改。")));
 
-  const list = h("div", { class: "panel rows" });
-  for (const [cat, label] of CATS) {
-    const r = ranking(cat, NOW), best = r[0], second = r[1];
-    const open = openCats.has(cat);
-    const row = h("div", { class: "cat", role: "button", tabindex: "0", "aria-expanded": String(open),
-      onclick: () => { open ? openCats.delete(cat) : openCats.add(cat); renderUse(); },
-      onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); row.click(); } } },
-      h("div", { class: "cat-main" }, h("span", { class: "cat-name" }, label), h("span", { class: "pct" }, pctS(best.pct))),
-      h("div", { class: "cat-main" }, h("span", {}, cardTag(best.card), " ", h("span", { class: "note" }, `${best.m}x`)), h("span", { class: "note" }, `次选 ${CARDS[second.card].short} ${pctS(second.pct)}`)),
-      best.notes.length ? h("span", { class: "note" }, best.notes.join(" · ")) : null,
-      open ? h("div", { class: "rank" }, r.map((x) => h("div", { class: "rank-row" },
-        h("span", {}, cardTag(x.card), " ", h("span", { class: "note" }, `${x.m}x ${CUR_LABEL[CARDS[x.card].cur]}`), x.verify ? h("span", { class: "chip warn", style: "margin-left:6px" }, "待核实") : null),
-        h("span", { class: "num" }, pctS(x.pct)),
-        x.notes.length ? h("span", { class: "note" }, x.notes.join(" · ")) : null))) : null);
-    list.append(row);
+  if (td.length) {
+    const shown = TODO_ALL ? td : td.slice(0, 3);
+    v.append(h("section", { id: "todo-sec" }, h("div", { class: "row-head" }, h("h2", {}, "待办"), h("span", { class: "chip " + (td.some((t) => t.days <= 21) ? "bad" : "warn") }, `${td.length} 项`)),
+      h("div", { class: "panel rows" }, shown.map(todoRow)),
+      td.length > 3 ? h("button", { class: "ghost", onclick: () => { TODO_ALL = !TODO_ALL; renderUse(); } }, TODO_ALL ? "收起" : `再看 ${td.length - 3} 项`) : null));
   }
-  v.append(h("section", {}, h("div", {}, h("h2", {}, "今天刷哪张"), h("span", { class: "note" }, "回报率 = 倍数 × 你设定的每分价值。点一行看全部排名。")), list));
 
-  // Spend goals
-  const goals = [
-    { card: "hh", t: "Aspire 自然年消费 $30k → 第 2 张免房券", key: "hhCal", at: 30000, bonus: CFG.fnValue.hh },
-    { card: "hh", t: "Aspire 自然年消费 $60k → 第 3 张免房券", key: "hhCal", at: 60000, bonus: CFG.fnValue.hh, after: 30000 },
-    { card: "aa", t: "Citi AA 卡年度 $20k → $125 机票折扣", key: "aaYear", at: 20000, bonus: 125 },
-    { card: "ips", t: "IHG Select 自然年 $15k → 20k 分（待核实）", key: "ipsCal", at: 15000, bonus: 20000 * CFG.vals.IHG / 100 },
-    { card: "ips", t: "IHG Select 自然年 $25k → Diamond", key: "ipsCal", at: 25000, bonus: 0 },
-    { card: "ihg", t: "IHG 卡年度 $20k → $100 + 10k 分", key: "ihgYear", at: 20000, bonus: 100 + 10000 * CFG.vals.IHG / 100 },
-  ];
-  const gl = h("div", { class: "panel rows" });
-  for (const g of goals) {
-    const spent = CFG.spend[g.key] || 0, base = g.after || 0;
-    const extra = g.bonus / (g.at - base) * 100;
-    const everyday = ranking("other", NOW).find((x) => x.card === g.card).pct;
-    gl.append(h("div", { class: "row" },
-      h("div", { class: "row-head" }, h("h3", {}, g.t), cardTag(g.card)),
-      bar((spent - base) / (g.at - base), spent >= g.at ? "good" : ""),
-      h("span", { class: "note" }, spent >= g.at ? "已达标。" :
-        !g.bonus ? `已花 $${fmt0(spent)}，还差 $${fmt0(g.at - spent)}。奖励是身份，没有折成回报率。` :
-        `已花 $${fmt0(spent)}，还差 $${fmt0(g.at - spent)}。确定能达标的话，一般消费实际回报 ≈ ${everyday.toFixed(2)}% + ${extra.toFixed(2)}% = ${(everyday + extra).toFixed(2)}%（奖励按你设的价值）。`)));
-  }
-  v.append(h("section", {}, h("div", {}, h("h2", {}, "消费目标"), h("span", { class: "note" }, "进度数字在设置里手动更新。达不到门槛的目标不要硬冲。")), gl));
+  v.append(h("section", {}, h("div", {}, h("h2", {}, "消费目标"), h("span", { class: "note" }, "导入账单后自动累加；点金额可以直接改。")),
+    h("div", { class: "panel rows" }, GOALS().map(goalRow))));
 }
+
+// Category detail sheet --------------------------------------------------------
+function openSheet(cat) { SHEET = cat; renderSheet(); }
+function closeSheet() { SHEET = null; renderSheet(); }
+function renderSheet() {
+  const root = $("#sheet");
+  if (!SHEET) { root.hidden = true; root.replaceChildren(); document.body.style.overflow = ""; return; }
+  const cat = SHEET, q = quarterKey(NOW);
+  const r = ranking(cat, NOW, { foreign: ABROAD });
+  const ctrls = [];
+  if (CFG.discoverVariant === "cashback" && discoverCats(q).includes(cat)) ctrls.push(h("div", { class: "ctrl" },
+    switchBtn(CFG.disActivated[q], `Discover ${q} 5% 已激活`, (x) => setCfg(() => { CFG.disActivated[q] = x; })),
+    h("span", { class: "note" }, "本季已用 ", editNum(CFG.spend.dis5, (x) => setCfg(() => { CFG.spend.dis5 = x; }), { prefix: "$", label: "Discover 5% 已用" }), " / $1,500")));
+  if (CFG.freedomVariant !== "unlimited" && freedomCats(q).includes(cat)) ctrls.push(h("div", { class: "ctrl" },
+    switchBtn(CFG.frActivated[q], `Freedom ${q} 5% 已激活`, (x) => setCfg(() => { CFG.frActivated[q] = x; })),
+    h("span", { class: "note" }, "本季已用 ", editNum(CFG.spend.fr5, (x) => setCfg(() => { CFG.spend.fr5 = x; }), { prefix: "$", label: "Freedom 5% 已用" }), " / $1,500")));
+  if (["grocery", "gas", "dining"].includes(cat)) ctrls.push(h("div", { class: "ctrl" },
+    h("span", { class: "note" }, "Boundless 3x 今年已用 ", editNum(CFG.spend.mar3x, (x) => setCfg(() => { CFG.spend.mar3x = x; }), { prefix: "$", label: "Boundless 3x 已用" }), " / $6,000")));
+  const list = h("div", { class: "rank" }, r.map((x, i) => {
+    const cur = CARDS[x.card].cur;
+    return h("div", { class: "rank-row" + (i === 0 ? " best" : "") },
+      h("span", {}, cardTag(x.card), x.verify ? h("span", { class: "chip warn", style: "margin-left:6px" }, "待核实") : null),
+      h("span", { class: "num pct" }, pctS(x.pct)),
+      h("span", { class: "note" }, `${x.m}x × `, editNum(CFG.vals[cur], (val) => setCfg(() => { CFG.vals[cur] = val; }), { suffix: "¢", step: "0.05", label: `${CUR_LABEL[cur]} 每分价值`, fmt: (n) => String(n) }), ` ${CUR_LABEL[cur]}`,
+        x.notes.length ? " · " + x.notes.join(" · ") : ""));
+  }));
+  root.replaceChildren(
+    h("div", { class: "scrim", onclick: closeSheet }),
+    h("div", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-label": CAT_LABEL[cat] },
+      h("div", { class: "row-head" }, h("h2", {}, CAT_LABEL[cat] + (ABROAD ? " · 海外" : "")), h("button", { class: "small ghost", onclick: closeSheet, "aria-label": "关闭" }, "关闭")),
+      ctrls.length ? h("div", { class: "ctrls" }, ctrls) : null,
+      list,
+      h("span", { class: "note" }, "点每分价值可以改，改了会影响所有类别的排名。")));
+  root.hidden = false; document.body.style.overflow = "hidden";
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SHEET) closeSheet(); });
 
 // ---------------------------------------------------------------------------
 // View: 羊毛
 // ---------------------------------------------------------------------------
+const OPEN_CARDS = new Set();
 function setUsage(key, patch) {
   USAGE[key] = { ...(USAGE[key] || {}), ...patch };
   saveUsage(key); renderPerks(); renderUse();
+}
+const FEE_NOTES = {
+  aa: () => NOW < AA_REFRESH ? "2027/1/24 起续卡年费 $99 → $150，同时加 $100 机上抵扣、Walmart+、$150 机票折扣。" : "",
+  ihg: () => "2027 年续卡时年费 $99 → $150；非 IHG 的广义旅行 5x 只到 2026/12/31。",
+};
+function openCount(ck) {
+  return BENEFITS.filter((b) => b.card === ck && b.amt && !b.cert).filter((b) => {
+    const u = USAGE[b.id + "_" + periodOf(b, NOW).key] || {};
+    return u.status !== "done" && u.status !== "na" && (u.used || 0) < b.amt;
+  }).length;
 }
 function renderPerks() {
   const v = $("#view-perks"); v.replaceChildren();
@@ -524,33 +663,40 @@ function renderPerks() {
     h("div", { class: "panel fig" }, h("span", { class: "label" }, `${y} 已用抵扣`), h("b", {}, "$" + fmt0(captured))),
     h("div", { class: "panel fig" }, h("span", { class: "label" }, "年费合计"), h("b", {}, "$" + fmt0(fees))),
     h("div", { class: "panel fig" }, h("span", { class: "label" }, "差额"), h("b", { style: `color:var(${captured >= fees ? "--good" : "--warn"})` }, (captured >= fees ? "+" : "−") + "$" + fmt0(Math.abs(captured - fees))))));
-  v.append(h("span", { class: "note" }, "抵扣只算现金类，免房券价值不计入。"));
+  v.append(h("span", { class: "note" }, "抵扣只算现金类，免房券价值不计入。导入账单时到账的抵扣会自动勾掉。"));
 
-  for (const ck of ["hh", "ips", "ihg", "mar", "aa", "dis", "fr"]) {
+  const order = ["hh", "ips", "ihg", "mar", "aa", "dis", "fr"].sort((a, b) => openCount(b) - openCount(a));
+  for (const ck of order) {
     const items = BENEFITS.filter((b) => b.card === ck);
-    const panel = h("div", { class: "panel rows" });
-    if (ck === "dis") {
-      const q = quarterKey(NOW);
-      if (CFG.discoverVariant === "cashback") panel.append(h("div", { class: "row" },
-        h("div", { class: "row-head" }, h("h3", {}, `${q} 5% 类别`), h("span", { class: "chip " + (CFG.disActivated[q] ? "good" : "bad") }, CFG.disActivated[q] ? "已激活" : "未激活")),
-        h("span", { class: "note" }, `${discoverCats(q).map((c) => CAT_LABEL[c]).join("、") || "本季类别未设置"}；季度前 $1,500。流媒体/订阅不算娱乐。`),
-        bar((CFG.spend.dis5 || 0) / 1500), h("span", { class: "note num" }, `$${fmt0(CFG.spend.dis5)} / $1,500`),
-        h("div", { class: "actions" }, h("button", { class: "small", onclick: () => { CFG.disActivated[q] = !CFG.disActivated[q]; saveCfg(); renderAll(); } }, CFG.disActivated[q] ? "标记为未激活" : "我已激活"))));
-      else panel.append(h("div", { class: "row" }, h("span", { class: "note" }, "没有需要追踪的福利。")));
-      panel.append(h("div", { class: "row" }, h("span", { class: "note" }, "无海外手续费，但海外受理率低，出国备一张 Visa/Mastercard。")));
+    const tracked = items.filter((b) => b.period !== "info"), info = items.filter((b) => b.period === "info");
+    const n = openCount(ck);
+    const body = h("div", { class: "rows" });
+    if (ck === "dis" || (ck === "fr" && CFG.freedomVariant !== "unlimited")) {
+      const q = quarterKey(NOW), isDis = ck === "dis";
+      const on = isDis ? CFG.discoverVariant === "cashback" : true;
+      if (on) {
+        const act = isDis ? CFG.disActivated : CFG.frActivated, key = isDis ? "dis5" : "fr5";
+        body.append(h("div", { class: "row" },
+          h("div", { class: "row-head" }, h("h3", {}, `${q} 5%：${(isDis ? discoverCats(q) : freedomCats(q)).map((c) => CAT_LABEL[c]).join("、") || "本季类别未设置"}`),
+            switchBtn(act[q], "已激活", (x) => setCfg(() => { act[q] = x; }))),
+          bar((CFG.spend[key] || 0) / 1500),
+          h("span", { class: "note" }, "已用 ", editNum(CFG.spend[key], (x) => setCfg(() => { CFG.spend[key] = x; }), { prefix: "$", label: "5% 已用" }), " / $1,500")));
+      }
     }
-    if (ck === "fr" && CFG.freedomVariant === "unlimited") panel.append(h("div", { class: "row" }, h("span", { class: "note" }, "没有需要追踪的福利。3% 海外交易手续费，海外别刷。Chase Travel 订旅行 5%，页面未计入。")));
-    if (ck === "fr" && CFG.freedomVariant !== "unlimited") {
-      const q = quarterKey(NOW);
-      panel.append(h("div", { class: "row" },
-        h("div", { class: "row-head" }, h("h3", {}, `${q} 5% 类别`), h("span", { class: "chip " + (CFG.frActivated[q] ? "good" : "bad") }, CFG.frActivated[q] ? "已激活" : "未激活")),
-        h("span", { class: "note" }, `${freedomCats(q).map((c) => CAT_LABEL[c]).join("、") || "本季类别未设置"}；季度前 $1,500。Walmart / Target 不算超市。`),
-        bar((CFG.spend.fr5 || 0) / 1500), h("span", { class: "note num" }, `$${fmt0(CFG.spend.fr5)} / $1,500`),
-        h("div", { class: "actions" }, h("button", { class: "small", onclick: () => { CFG.frActivated[q] = !CFG.frActivated[q]; saveCfg(); renderAll(); } }, CFG.frActivated[q] ? "标记为未激活" : "我已激活"))));
-    }
-    for (const b of items) panel.append(perkRow(b));
-    v.append(h("section", {}, h("h2", {}, h("span", { class: "cardtag", style: "font-size:inherit" }, h("span", { class: "dot", style: `background:${CARDS[ck].color}` }), CARDS[ck].name)),
-      h("span", { class: "note" }, CARDS[ck].fee ? `年费 $${CARDS[ck].fee}` : "无年费"), panel));
+    tracked.forEach((b) => body.append(perkRow(b)));
+    const extra = [...info.map((b) => `${b.title}：${b.how}`)];
+    if (ck === "dis") extra.push("无海外手续费，但海外受理率低。");
+    if (ck === "fr") extra.push("3% 海外交易手续费；Chase Travel 订旅行 5%（未计入）。");
+    const fee = FEE_NOTES[ck]?.();
+    if (fee) body.append(h("div", { class: "row" }, h("span", { class: "chip acc", style: "justify-self:start" }, "年费变化"), h("span", { class: "note" }, fee)));
+    if (extra.length) body.append(h("div", { class: "row" }, h("span", { class: "label" }, "其他权益"), extra.map((t) => h("span", { class: "note" }, t))));
+    const open = OPEN_CARDS.has(ck) || (!OPEN_CARDS.has("_touched_" + ck) && n > 0);
+    const det = h("details", { class: "panel card-sec", open },
+      h("summary", {}, h("span", { class: "cardtag" }, h("span", { class: "dot", style: `background:${CARDS[ck].color}` }), CARDS[ck].name),
+        h("span", { class: "chips" }, n ? h("span", { class: "chip warn" }, `${n} 项待用`) : null, h("span", { class: "chip" }, CARDS[ck].fee ? `$${CARDS[ck].fee}/年` : "无年费"))),
+      body);
+    det.addEventListener("toggle", () => { OPEN_CARDS.add("_touched_" + ck); det.open ? OPEN_CARDS.add(ck) : OPEN_CARDS.delete(ck); });
+    v.append(det);
   }
   v.append(h("p", { class: "note src" }, `条款核对日期 ${TERMS_CHECKED}。标“待核实”的条目来自记忆或来源冲突，以发卡行为准。`));
 }
@@ -558,33 +704,34 @@ function perkRow(b) {
   const row = h("div", { class: "row" });
   const head = h("div", { class: "row-head" }, h("h3", {}, b.title), h("div", { class: "chips" }, b.verify ? h("span", { class: "chip warn" }, "待核实") : null));
   row.append(head);
-  if (b.period === "info") { row.append(h("span", { class: "note" }, b.how)); return row; }
   const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
   const dl = daysLeft(p.end);
   const st = u.status === "done" ? ["good", "已用完"] : u.status === "na" ? ["", "N/A"] : dl <= 21 ? ["bad", `${dl} 天`] : dl <= 75 ? ["warn", `${dl} 天`] : ["", `${dl} 天`];
   head.lastChild.append(h("span", { class: "chip " + st[0] }, st[1]));
   row.append(h("span", { class: "note" }, `${p.label} · ${b.how}`));
-
   if (b.amt) {
     const used = u.used || 0;
-    row.append(bar(used / b.amt, used >= b.amt ? "good" : ""), h("span", { class: "note num" }, `$${fmt2(used)} / $${b.amt}`));
-    const inp = h("input", { type: "number", inputmode: "decimal", step: "0.01", min: "0", placeholder: "金额", "aria-label": `${b.title} 本次金额`, id: "amt-" + key, style: "width:7.5em" });
-    row.append(h("div", { class: "actions" }, inp,
-      h("button", { class: "small primary", onclick: () => { const a = parseFloat(inp.value); if (!(a > 0)) return; const nu = Math.min(b.amt, used + a); setUsage(key, { used: nu, status: nu >= b.amt ? "done" : "open" }); } }, "记一笔"),
-      h("button", { class: "small", onclick: () => setUsage(key, { used: b.amt, status: "done" }) }, "全用了"),
-      h("button", { class: "small ghost", onclick: () => setUsage(key, { status: u.status === "na" ? "open" : "na" }) }, u.status === "na" ? "取消 N/A" : "N/A"),
-      used ? h("button", { class: "small ghost", onclick: () => { delete USAGE[key]; saveUsage(key); renderPerks(); renderUse(); } }, "清零") : null));
+    row.append(bar(used / b.amt, used >= b.amt ? "good" : ""),
+      h("div", { class: "row-head" },
+        h("span", { class: "note" }, "已用 ", editNum(used, (x) => { const nu = Math.min(b.amt, x); setUsage(key, { used: nu, status: nu >= b.amt ? "done" : "open" }); }, { prefix: "$", label: `${b.title} 已用`, fmt: fmt2, step: "0.01" }), ` / $${b.amt}`),
+        h("div", { class: "actions" },
+          used < b.amt && u.status !== "na" ? h("button", { class: "small", onclick: () => setUsage(key, { used: b.amt, status: "done" }) }, "用完了") : null,
+          h("button", { class: "small ghost", onclick: () => setUsage(key, { status: u.status === "na" ? "open" : "na" }) }, u.status === "na" ? "取消 N/A" : "N/A"))));
   } else if (b.cert) {
-    const exp = h("input", { type: "date", value: u.expires || "", id: "exp-" + key, "aria-label": "到期日",
-      onchange: (e) => setUsage(key, { expires: e.target.value }) });
+    const exp = h("input", { type: "date", value: u.expires || "", id: "exp-" + key, "aria-label": "到期日", onchange: (e) => setUsage(key, { expires: e.target.value }) });
     row.append(h("div", { class: "actions" }, h("label", { class: "field" }, h("span", {}, "到期日"), exp),
       h("button", { class: "small" + (u.status === "done" ? "" : " primary"), onclick: () => setUsage(key, { status: u.status === "done" ? "open" : "done" }) }, u.status === "done" ? "撤销已用" : "已订房")));
-    if (b.fn) row.append(h("span", { class: "note" }, `按你设的价值 ≈ $${CFG.fnValue[b.fn]}`));
+    if (b.fn) row.append(h("span", { class: "note" }, "这张券对你值 ", editNum(CFG.fnValue[b.fn], (x) => setCfg(() => { CFG.fnValue[b.fn] = x; }), { prefix: "$", label: "免房券价值" })));
   } else if (b.goal) {
     const spent = CFG.spend[b.goal.key] || 0;
-    row.append(bar(spent / b.goal.at, spent >= b.goal.at ? "good" : ""), h("span", { class: "note num" }, `$${fmt0(spent)} / $${fmt0(b.goal.at)}（在设置里更新）`));
+    row.append(bar(spent / b.goal.at, spent >= b.goal.at ? "good" : ""),
+      h("span", { class: "note" }, "已花 ", editNum(spent, (x) => setCfg(() => { CFG.spend[b.goal.key] = x; }), { prefix: "$", label: "已花金额" }), ` / $${fmt0(b.goal.at)}`));
   }
-  if (p.unset) row.append(h("span", { class: "chip acc", style: "justify-self:start" }, "去设置填开卡月份"));
+  if (p.unset) {
+    const sel = h("select", { "aria-label": "开卡月份", style: "width:auto", onchange: (e) => setCfg(() => { CFG.anniv[b.card] = parseInt(e.target.value, 10); }) },
+      h("option", { value: "0" }, "选开卡月份…"), Array.from({ length: 12 }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} 月`)));
+    row.append(h("div", { class: "actions" }, h("span", { class: "note" }, "周期要按开卡月份算："), sel));
+  }
   return row;
 }
 
@@ -940,32 +1087,28 @@ function renderSettings() {
   const v = $("#view-settings"); v.replaceChildren();
   const num = (id, val, on, attrs = {}) => h("input", { id, type: "number", inputmode: "decimal", step: attrs.step || "1", min: "0", value: String(val ?? 0), style: "width:100%", onchange: (e) => { on(parseFloat(e.target.value) || 0); saveCfg(); renderUse(); renderPerks(); } });
 
-  v.append(h("section", {}, h("h2", {}, "Chase Freedom 是哪一张"), h("div", { class: "panel row" },
-    h("select", { id: "st-frv", onchange: (e) => { CFG.freedomVariant = e.target.value; saveCfg(); renderAll(); } },
-      [["legacy", "Chase Freedom（老款，5% 轮换 + 1%，有 3% 海外手续费）"], ["flex", "Freedom Flex（5% 轮换 + 3% 餐厅/药店）"], ["unlimited", "Freedom Unlimited（1.5% + 3% 餐厅/药店）"]]
-        .map(([k, t]) => h("option", { value: k, selected: CFG.freedomVariant === k }, t))),
-    h("span", { class: "note" }, "默认按老款 Chase Freedom 算。三款都有 3% 海外交易手续费，海外别刷。"))));
-
+  v.append(h("p", { class: "note" }, "这里只放很少改的设置。5% 激活、额度、消费进度、每分价值都能在「刷哪张」和「羊毛」里点数字直接改。"));
   const q = quarterKey(NOW);
-  const qBox = h("div", { class: "chips" }, CATS.filter(([c]) => c !== "foreign").map(([c, l]) => {
-    const on = freedomCats(q).includes(c);
-    return h("button", { class: "small" + (on ? " primary" : ""), "aria-pressed": String(on), onclick: () => {
-      const cur = new Set(freedomCats(q)); on ? cur.delete(c) : cur.add(c); CFG.freedomQ[q] = [...cur]; saveCfg(); renderAll();
-    } }, l);
+  const qChips = (get, set) => h("div", { class: "chips" }, CATS.filter(([c]) => c !== "foreign").map(([c, l]) => {
+    const on = get().includes(c);
+    return h("button", { class: "small" + (on ? " primary" : ""), "aria-pressed": String(on), onclick: () => setCfg(() => { const cur = new Set(get()); on ? cur.delete(c) : cur.add(c); set([...cur]); }) }, l);
   }));
-  v.append(h("section", {}, h("h2", {}, `Freedom ${q} 5% 类别`), h("div", { class: "panel row" }, qBox,
-    h("label", { class: "actions" }, h("input", { type: "checkbox", id: "st-fract", checked: !!CFG.frActivated[q], onchange: (e) => { CFG.frActivated[q] = e.target.checked; saveCfg(); renderAll(); } }), "本季已激活"),
-    h("span", { class: "note" }, "2026 Q4 已预设为超市、餐厅、Red Cross（激活截止 12/14）。每季 Chase 公布新类别后在这里改。"))));
 
-  v.append(h("section", {}, h("h2", {}, "今年进度（手动更新）"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
-    h("label", { class: "field" }, h("span", {}, "Freedom 本季 5% 已用 $"), num("sp-fr5", CFG.spend.fr5, (x) => CFG.spend.fr5 = x)),
-    h("label", { class: "field" }, h("span", {}, "Boundless 3x 类别今年已用 $"), num("sp-mar3x", CFG.spend.mar3x, (x) => CFG.spend.mar3x = x)),
-    h("label", { class: "field" }, h("span", {}, "Aspire 自然年消费 $"), num("sp-hh", CFG.spend.hhCal, (x) => CFG.spend.hhCal = x)),
-    h("label", { class: "field" }, h("span", {}, "Citi AA 卡年度消费 $"), num("sp-aa", CFG.spend.aaYear, (x) => CFG.spend.aaYear = x)),
-    h("label", { class: "field" }, h("span", {}, "IHG 卡年度消费 $"), num("sp-ihg", CFG.spend.ihgYear, (x) => CFG.spend.ihgYear = x)),
-    h("label", { class: "field" }, h("span", {}, "IHG Select 自然年消费 $"), num("sp-ips", CFG.spend.ipsCal, (x) => CFG.spend.ipsCal = x))))));
+  v.append(h("section", {}, h("h2", {}, "Discover"), h("div", { class: "panel row" },
+    h("select", { id: "st-dv", onchange: (e) => setCfg(() => { CFG.discoverVariant = e.target.value; }) },
+      [["cashback", "Discover it Cash Back（5% 轮换 + 1%）"], ["miles", "Discover it Miles（1.5x）"], ["chrome", "Discover it Chrome（2% 加油/餐厅）"]]
+        .map(([k, t]) => h("option", { value: k, selected: CFG.discoverVariant === k }, t))),
+    switchBtn(CFG.disMatch, "开卡第一年（Cashback Match 翻倍）", (x) => setCfg(() => { CFG.disMatch = x; })),
+    CFG.discoverVariant === "cashback" ? [h("span", { class: "label" }, `${q} 5% 类别`), qChips(() => discoverCats(q), (v2) => { CFG.discoverQ[q] = v2; }),
+      h("span", { class: "note" }, "2026 Q4 已预设为餐厅、娱乐、水电网费。每季 Discover 公布新类别后在这里改。")] : null)));
 
-  v.append(h("span", { class: "note" }, "填开始导入 CSV 之前已经花掉的部分。之后保存的复盘会自动累加到这些数字上。"));
+  v.append(h("section", {}, h("h2", {}, "Chase Freedom"), h("div", { class: "panel row" },
+    h("select", { id: "st-frv", onchange: (e) => setCfg(() => { CFG.freedomVariant = e.target.value; }) },
+      [["unlimited", "Freedom Unlimited（1.5% + 3% 餐厅/药店）"], ["flex", "Freedom Flex（5% 轮换 + 3% 餐厅/药店）"], ["legacy", "Chase Freedom（老款，5% 轮换 + 1%）"]]
+        .map(([k, t]) => h("option", { value: k, selected: CFG.freedomVariant === k }, t))),
+    CFG.freedomVariant !== "unlimited" ? [h("span", { class: "label" }, `${q} 5% 类别`), qChips(() => freedomCats(q), (v2) => { CFG.freedomQ[q] = v2; })] : null,
+    h("span", { class: "note" }, "三款都有 3% 海外交易手续费。"))));
+
   v.append(h("section", {}, h("h2", {}, "Chase 卡号末四位"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     ["mar", "ihg", "ips", "fr"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
       h("input", { id: "l4-" + k, inputmode: "numeric", maxlength: "4", value: CFG.last4[k] || "", placeholder: "1234", onchange: (e) => { CFG.last4[k] = e.target.value.replace(/\D/g, "").slice(0, 4); saveCfg(); } })))),
@@ -986,7 +1129,7 @@ function renderSettings() {
 }
 
 // ---------------------------------------------------------------------------
-function renderAll() { renderUse(); renderPerks(); renderSettings(); if (!$("#rv-text")) renderReview(); }
+function renderAll() { renderUse(); renderPerks(); renderSettings(); renderSheet(); if (!$("#rv-text")) renderReview(); }
 function showTab(t) {
   document.querySelectorAll("[data-view]").forEach((el) => { el.hidden = el.id !== "view-" + t; });
   document.querySelectorAll("nav.tabs button").forEach((b) => { if (b.dataset.tab === t) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
