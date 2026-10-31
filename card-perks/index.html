@@ -131,6 +131,9 @@ textarea { width: 100%; min-height: 150px; font: 13px/1.45 var(--f-mono); resize
 .tile-pct { font: 500 22px/1.15 var(--f-mono); font-variant-numeric: tabular-nums; }
 .tile-card .cardtag { font-size: 13px; }
 .owner { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--sunk); border-radius: 4px; padding: 0 4px; margin-left: 2px; }
+.seg { display: inline-flex; background: var(--sunk); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; min-height: 32px; padding: 4px 14px; border-radius: 8px; font-size: 13px; color: var(--muted); }
+.seg button[aria-checked="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .tile-hint { font-size: 11.5px; color: var(--warn); font-weight: 600; }
 .edit { all: unset; cursor: pointer; font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); border-bottom: 1px dashed var(--accent); padding: 0 1px; }
 .edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -232,7 +235,8 @@ const DEFAULT_CONFIG = {
   discoverQ: {},                       // overrides { "2026Q4": [...] }
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
-  household: true,                     // include spouse cards in recommendations
+  who: "me",                           // whose wallet to recommend from: me | spouse | both
+  canUse: { me: [], spouse: [] },      // authorized-user cards: his cards I can use / my cards he can use
   last4: { mar: "", ihg: "", ips: "", fr: "", ua: "" },  // Chase card last 4 digits, for CSV matching
   vals: { UA: 1.2, DIS: 1.0, UR: 1.0, HH: 0.4, AA: 1.45, IHG: 0.6, MAR: 0.75 }, // cents/point; hotel/airline = TPG Oct 2026
   anniv: { aa: 0, mar: 0, hh: 0, ihg: 0, ips: 0 },                   // card-open month 1-12, 0 = unset
@@ -318,7 +322,16 @@ function earn(card, cat, d, opts = {}) {
   return { m, notes: n, verify };
 }
 
-function activeCards() { return Object.keys(CARDS).filter((k) => CFG.household || !CARDS[k].owner); }
+// Cards a person can put a purchase on: their own plus authorized-user cards.
+function cardsFor(who) {
+  const all = Object.keys(CARDS);
+  if (who === "both") return all;
+  if (who === "spouse") return all.filter((k) => CARDS[k].owner || (CFG.canUse.spouse || []).includes(k));
+  return all.filter((k) => !CARDS[k].owner || (CFG.canUse.me || []).includes(k));
+}
+function activeCards() { return cardsFor(CFG.who); }
+const ownerPrefix = (k) => (CARDS[k].owner ? CARDS[k].owner + "的 " : "");
+const WHO_LABEL = { me: "我", spouse: "老公", both: "一起" };
 function valuePct(card, cat, d, opts = {}) {
   if (cat === "flight_ua" && card !== "ua") cat = "flight_other";
   const e = earn(card, cat, d, opts);
@@ -537,14 +550,14 @@ function todos() {
     if (u.status === "done" || u.status === "na") continue;
     const left = b.amt - (u.used || 0), dl = daysLeft(p.end);
     if (left <= 0 || dl > 75) continue;
-    out.push({ id: key, days: dl, amt: left, t: `${CARDS[b.card].short} · ${b.title}`, d: `还剩 $${fmt0(left)}，${dl} 天后过期`, record: { b, key, used: u.used || 0 },
+    out.push({ id: key, days: dl, amt: left, t: `${ownerPrefix(b.card)}${CARDS[b.card].short} · ${b.title}`, d: `还剩 $${fmt0(left)}，${dl} 天后过期`, record: { b, key, used: u.used || 0 },
       actions: [["用完了", () => setUsage(key, { used: b.amt, status: "done" })], ["不适用", () => setUsage(key, { status: "na" })]] });
   }
   for (const b of BENEFITS.filter((x) => x.cert)) {
     const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
     if (u.status === "done" || u.status === "na" || !u.expires) continue;
     const dl = daysLeft(D(u.expires));
-    if (dl <= 90) out.push({ id: key, days: dl, t: `${CARDS[b.card].short} 免房券`, d: `${dl} 天后过期（${u.expires}）`, actions: [["已订房", () => setUsage(key, { status: "done" })]] });
+    if (dl <= 90) out.push({ id: key, days: dl, t: `${ownerPrefix(b.card)}${CARDS[b.card].short} 免房券`, d: `${dl} 天后过期（${u.expires}）`, actions: [["已订房", () => setUsage(key, { status: "done" })]] });
   }
   return out.sort((a, b) => a.days - b.days || (b.amt || 0) - (a.amt || 0));
 }
@@ -575,7 +588,7 @@ const GOALS = () => [
 ];
 function goalRow(g) {
   const spent = CFG.spend[g.key] || 0, base = g.after || 0;
-  const everyday = ranking("other", NOW).find((x) => x.card === g.card).pct;
+  const everyday = valuePct(g.card, "other", NOW).pct;
   const extra = g.bonus / (g.at - base) * 100;
   return h("div", { class: "row" },
     h("div", { class: "row-head" }, h("h3", {}, g.t), h("div", { class: "chips" }, g.verify ? h("span", { class: "chip warn" }, "待核实") : null, cardTag(g.card))),
@@ -596,7 +609,11 @@ function renderUse() {
   const td = todos();
   const top = td[0];
   v.append(h("section", {},
-    h("div", { class: "row-head" }, h("h2", {}, "今天刷哪张"), switchBtn(ABROAD, "在海外", (x) => { ABROAD = x; renderUse(); })),
+    h("h2", {}, "今天刷哪张"),
+    h("div", { class: "row-head" },
+      h("div", { class: "seg", role: "radiogroup", "aria-label": "谁来刷" }, ["me", "spouse", "both"].map((w) =>
+        h("button", { type: "button", role: "radio", "aria-checked": String(CFG.who === w), onclick: () => setCfg(() => { CFG.who = w; }) }, WHO_LABEL[w]))),
+      switchBtn(ABROAD, "在海外", (x) => { ABROAD = x; renderUse(); })),
     top ? h("button", { class: "banner" + (top.days <= 21 ? " bad" : ""), onclick: () => $("#todo-sec")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
       h("span", {}, h("b", {}, top.t), h("span", { class: "note" }, " · " + top.d)), h("span", { class: "chip" }, `待办 ${td.length} ↓`)) : null,
     tiles,
@@ -609,8 +626,8 @@ function renderUse() {
       td.length > 3 ? h("button", { class: "ghost", onclick: () => { TODO_ALL = !TODO_ALL; renderUse(); } }, TODO_ALL ? "收起" : `再看 ${td.length - 3} 项`) : null));
   }
 
-  v.append(h("section", {}, h("div", {}, h("h2", {}, "消费目标"), h("span", { class: "note" }, "导入账单后自动累加；点金额可以直接改。")),
-    h("div", { class: "panel rows" }, GOALS().map(goalRow))));
+  if (GOALS().some((g) => activeCards().includes(g.card))) v.append(h("section", {}, h("div", {}, h("h2", {}, "消费目标"), h("span", { class: "note" }, "导入账单后自动累加；点金额可以直接改。")),
+    h("div", { class: "panel rows" }, GOALS().filter((g) => activeCards().includes(g.card)).map(goalRow))));
 }
 
 // Category detail sheet --------------------------------------------------------
@@ -641,7 +658,7 @@ function renderSheet() {
   root.replaceChildren(
     h("div", { class: "scrim", onclick: closeSheet }),
     h("div", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-label": CAT_LABEL[cat] },
-      h("div", { class: "row-head" }, h("h2", {}, CAT_LABEL[cat] + (ABROAD ? " · 海外" : "")), h("button", { class: "small ghost", onclick: closeSheet, "aria-label": "关闭" }, "关闭")),
+      h("div", { class: "row-head" }, h("h2", {}, CAT_LABEL[cat] + ` · ${WHO_LABEL[CFG.who]}` + (ABROAD ? " · 海外" : "")), h("button", { class: "small ghost", onclick: closeSheet, "aria-label": "关闭" }, "关闭")),
       ctrls.length ? h("div", { class: "ctrls" }, ctrls) : null,
       list,
       h("span", { class: "note" }, "点每分价值可以改，改了会影响所有类别的排名。")));
@@ -879,7 +896,9 @@ function evaluate(txns, month) {
     const card = CARDS[t.card] ? t.card : null;
     let d = d0; const dd = /^\d{4}-\d{2}-\d{2}$/.test(t.date || "") ? D(t.date) : null; if (dd && !isNaN(dd)) d = dd;
     const opts = { foreign: !!t.foreign, historical: true };
-    const r = activeCards().map((k) => ({ card: k, ...valuePct(k, cat, d, opts) })).sort((a, b) => b.pct - a.pct);
+    // Compare against the cards the person who paid could have used.
+    const payer = card && CARDS[card].owner && !(CFG.canUse.me || []).includes(card) ? "spouse" : "me";
+    const r = cardsFor(payer).map((k) => ({ card: k, ...valuePct(k, cat, d, opts) })).sort((a, b) => b.pct - a.pct);
     const used = card ? r.find((x) => x.card === card) : null;
     const best = r[0];
     const usedVal = used ? t.amount * used.pct / 100 : 0;
@@ -1105,9 +1124,14 @@ function renderSettings() {
   const num = (id, val, on, attrs = {}) => h("input", { id, type: "number", inputmode: "decimal", step: attrs.step || "1", min: "0", value: String(val ?? 0), style: "width:100%", onchange: (e) => { on(parseFloat(e.target.value) || 0); saveCfg(); renderUse(); renderPerks(); } });
 
   v.append(h("p", { class: "note" }, "这里只放很少改的设置。5% 激活、额度、消费进度、每分价值都能在「刷哪张」和「羊毛」里点数字直接改。"));
-  v.append(h("section", {}, h("h2", {}, "家庭"), h("div", { class: "panel row" },
-    switchBtn(CFG.household, "刷卡推荐里包含老公的 United Club Card", (x) => setCfg(() => { CFG.household = x; })),
-    h("span", { class: "note" }, "适合你有这张卡的附属卡，或者家庭开销由他来刷的情况。它的抵扣在「羊毛」里照常追踪。"))));
+  const auToggle = (k, who, label) => switchBtn((CFG.canUse[who] || []).includes(k), label, (x) => setCfg(() => {
+    const set = new Set(CFG.canUse[who] || []); x ? set.add(k) : set.delete(k); CFG.canUse = { ...CFG.canUse, [who]: [...set] };
+  }));
+  v.append(h("section", {}, h("h2", {}, "附属卡：谁能刷哪张"), h("div", { class: "panel row" },
+    h("span", { class: "note" }, "「刷哪张」顶部选「我 / 老公 / 一起」时，只在这个人能刷的卡里推荐。有附属卡的在这里打开。"),
+    Object.keys(CARDS).map((k) => CARDS[k].owner
+      ? auToggle(k, "me", `${CARDS[k].short}（老公的）· 我有附属卡`)
+      : auToggle(k, "spouse", `${CARDS[k].short} · 老公有附属卡`)))));
   const q = quarterKey(NOW);
   const qChips = (get, set) => h("div", { class: "chips" }, CATS.filter(([c]) => c !== "foreign").map(([c, l]) => {
     const on = get().includes(c);
