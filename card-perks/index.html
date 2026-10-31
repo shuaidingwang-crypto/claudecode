@@ -192,12 +192,12 @@ const DEFAULT_CONFIG = {
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
   last4: { mar: "", ihg: "", ips: "", fr: "" },  // Chase card last 4 digits, for CSV matching
-  vals: { DIS: 1.0, UR: 1.0, HH: 0.45, AA: 1.5, IHG: 0.5, MAR: 0.7 }, // cents/point, user assumptions
+  vals: { DIS: 1.0, UR: 1.0, HH: 0.4, AA: 1.45, IHG: 0.6, MAR: 0.75 }, // cents/point; hotel/airline = TPG Oct 2026
   anniv: { aa: 0, mar: 0, hh: 0, ihg: 0, ips: 0 },                   // card-open month 1-12, 0 = unset
   freedomQ: {},                        // overrides { "2026Q4": [...] }
   frActivated: {},                     // { "2026Q4": true }
   spend: { dis5: 0, disChrome: 0, mar3x: 0, fr5: 0, hhCal: 0, aaYear: 0, ihgYear: 0, ipsCal: 0, marYear: 0 },
-  fnValue: { hh: 400, ihg: 200, ips: 300, mar: 175 },                  // what one free night is worth to you, $
+  fnValue: { hh: 300, ihg: 240, ips: 360, mar: 263 },                  // $; capped certs = cap × TPG value
 };
 
 function quarterKey(d) { return d.getFullYear() + "Q" + (Math.floor(d.getMonth() / 3) + 1); }
@@ -969,11 +969,11 @@ function renderSettings() {
 
   v.append(h("section", {}, h("h2", {}, "每分值多少（美分）"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     Object.keys(CFG.vals).map((c) => h("label", { class: "field" }, h("span", {}, CUR_LABEL[c]), num("val-" + c, CFG.vals[c], (x) => CFG.vals[c] = x, { step: "0.05" })))),
-    h("span", { class: "note" }, "默认值是粗估，不是查来的数据：Chase UR 只有 Freedom 时按 1¢ 现金算；酒店分取常见估值区间的中间。按你自己的兑换习惯改。"))));
+    h("span", { class: "note" }, "默认值：Discover 和 Chase UR（只有 Freedom U，不能转点）按 1¢ 现金；AA、Hilton、IHG、Marriott 取 The Points Guy 2026 年 10 月估值。NerdWallet 的数不同（AA 1.7、Hilton 0.35、IHG 0.5–0.6、Marriott 0.7–0.8），按你自己的兑换习惯改。"))));
 
   v.append(h("section", {}, h("h2", {}, "一张免房券对你值多少（$）"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     [["hh", "Hilton 免房券"], ["ips", "IHG Select 免房券（≤60k）"], ["ihg", "IHG Premier 免房券（≤40k）"], ["mar", "Marriott 免房券"]].map(([k, l]) => h("label", { class: "field" }, h("span", {}, l), num("fn-" + k, CFG.fnValue[k], (x) => CFG.fnValue[k] = x)))),
-    h("span", { class: "note" }, "用来算“冲消费目标”的额外回报。"))));
+    h("span", { class: "note" }, "IHG 和 Marriott = 券面上限 × 每分价值（上限值，订便宜酒店就用不满）。Hilton 券不设上限，各评测估 $200–$521，取 $300。用来算“冲消费目标”的额外回报。"))));
 }
 
 // ---------------------------------------------------------------------------
