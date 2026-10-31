@@ -208,6 +208,12 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"Costco 实体店": "Costco warehouse",
+"Costco 加油": "Costco gas",
+"costco.com": "costco.com",
+"costco.com 收 Visa 和 Mastercard；Amex、Discover 各来源说法不一，没列入。": "costco.com takes Visa and Mastercard; sources disagree on Amex and Discover, so they're left out.",
+"Costco 实体店和加油站只收 Visa 信用卡，其他卡不列。": "Costco warehouses and gas stations take only Visa credit cards; other cards are left out.",
+
 "无年费 · 超市和 AA 消费 2x": "No annual fee · 2x at grocery stores and on American",
 "2026/11 由 Platinum Select 降级而来：没有免费托运和优先登机；3% 海外交易手续费。": "Downgraded from Platinum Select in Nov 2026: no free checked bag or preferred boarding; 3% foreign transaction fee.",
 
@@ -556,15 +562,15 @@ const AA_REFRESH = D("2027-01-24");
 const IHG_REFRESH = D("2027-01-01");
 
 const CARDS = {
-  fr:  { name: "Chase Freedom Unlimited", short: "Freedom U", cur: "UR", fee: 0, ftf: 0.03, color: "var(--c-fr)" },
-  dis: { name: "Discover it Cash Back", short: "Discover", cur: "DIS", fee: 0, ftf: 0, color: "var(--c-dis)" },
-  hh:  { name: "Hilton Honors Aspire (Amex)", short: "Aspire", cur: "HH", fee: 550, ftf: 0, color: "var(--c-hh)" },
-  aa:  { name: "Citi AAdvantage MileUp", short: "MileUp", cur: "AA", fee: 0, ftf: 0.03, color: "var(--c-aa)" },
-  ihg: { name: "IHG One Rewards Premier", short: "IHG Premier", cur: "IHG", fee: 99, ftf: 0, color: "var(--c-ihg)" },
-  ips: { name: "IHG One Rewards Premier Select", short: "IHG Select", cur: "IHG", fee: 350, ftf: 0, color: "var(--c-ips)" },
-  ua:  { name: "United Club Card", short: "United Club", cur: "UA", fee: 695, ftf: 0, color: "var(--c-ua)", owner: "spouse" },
-  apple: { name: "Apple Card", short: "Apple Card", cur: "APL", fee: 0, ftf: 0, color: "var(--c-apple)" },
-  mar: { name: "Marriott Bonvoy Boundless", short: "Boundless", cur: "MAR", fee: 95, ftf: 0, color: "var(--c-mar)" },
+  fr:  { name: "Chase Freedom Unlimited", short: "Freedom U", cur: "UR", fee: 0, ftf: 0.03, color: "var(--c-fr)", net: "visa" },
+  dis: { name: "Discover it Cash Back", short: "Discover", cur: "DIS", fee: 0, ftf: 0, color: "var(--c-dis)", net: "discover" },
+  hh:  { name: "Hilton Honors Aspire (Amex)", short: "Aspire", cur: "HH", fee: 550, ftf: 0, color: "var(--c-hh)", net: "amex" },
+  aa:  { name: "Citi AAdvantage MileUp", short: "MileUp", cur: "AA", fee: 0, ftf: 0.03, color: "var(--c-aa)", net: "mc" },
+  ihg: { name: "IHG One Rewards Premier", short: "IHG Premier", cur: "IHG", fee: 99, ftf: 0, color: "var(--c-ihg)", net: "mc" },
+  ips: { name: "IHG One Rewards Premier Select", short: "IHG Select", cur: "IHG", fee: 350, ftf: 0, color: "var(--c-ips)", net: "mc" },
+  ua:  { name: "United Club Card", short: "United Club", cur: "UA", fee: 695, ftf: 0, color: "var(--c-ua)", owner: "spouse", net: "visa" },
+  apple: { name: "Apple Card", short: "Apple Card", cur: "APL", fee: 0, ftf: 0, color: "var(--c-apple)", net: "mc" },
+  mar: { name: "Marriott Bonvoy Boundless", short: "Boundless", cur: "MAR", fee: 95, ftf: 0, color: "var(--c-mar)", net: "visa" },
 };
 
 // User-facing text that lives in data; rebuilt when the language changes.
@@ -574,7 +580,7 @@ function defineText() {
     ["dining", T("餐厅")], ["grocery", T("超市 Grocery")], ["gas", T("加油 / EV 充电")], ["other", T("其他一切")],
     ["flight_aa", T("AA 机票")], ["flight_ua", T("United 机票")], ["flight_other", T("其他航司机票")], ["car_rental", T("租车")], ["transit", T("打车 / 公交")],
     ["hotel_hilton", T("Hilton 酒店")], ["hotel_marriott", T("Marriott 酒店")], ["hotel_ihg", T("IHG 酒店")], ["hotel_other", T("其他酒店 / OTA")],
-    ["streaming", T("流媒体")], ["entertainment", T("娱乐 / 演出 / 电影")], ["utilities", T("水电燃气网费")], ["drugstore", T("药店")], ["red_cross", T("Red Cross 捐款")], ["apple", T("Apple / App Store")], ["foreign", T("海外消费")],
+    ["streaming", T("流媒体")], ["entertainment", T("娱乐 / 演出 / 电影")], ["utilities", T("水电燃气网费")], ["drugstore", T("药店")], ["red_cross", T("Red Cross 捐款")], ["apple", T("Apple / App Store")], ["costco", T("Costco 实体店")], ["costco_gas", T("Costco 加油")], ["costco_online", T("costco.com")], ["foreign", T("海外消费")],
   ];
     CAT_LABEL = Object.fromEntries(CATS);
   CUR_LABEL = { APL: T("Apple 返现"), UA: "United miles", DIS: T("Discover 返现"), UR: T("Chase 点数"), HH: "Hilton", AA: "AA miles", IHG: "IHG", MAR: "Marriott" };
@@ -727,6 +733,9 @@ const ownerName = () => T("老公");
 function valuePct(card, cat, d, opts = {}) {
   if (cat === "flight_ua" && card !== "ua") cat = "flight_other";
   if (cat === "apple" && card !== "apple") cat = "other";
+  // Costco codes as a warehouse club (not grocery); its pumps code as gas.
+  if (cat === "costco" || cat === "costco_online") cat = "other";
+  if (cat === "costco_gas") cat = "gas";
   const e = earn(card, cat, d, opts);
   let pct = e.m * CFG.vals[CARDS[card].cur];
   if (opts.foreign && CARDS[card].ftf) { pct -= CARDS[card].ftf * 100; e.notes.push(T("3% 海外交易手续费")); }
@@ -739,10 +748,12 @@ function subState(card, d = NOW) {
   if (left <= 0 || days < 0 || d > D(sb.by)) return null;
   return { ...sb, spent, left, days, boost: sb.bonus * CFG.vals[CARDS[card].cur] / sb.target };
 }
+// Costco only takes some networks; cards it refuses are left out of those categories.
+const COSTCO_NETS = { costco: ["visa"], costco_gas: ["visa"], costco_online: ["visa", "mc"] };
 function ranking(cat, d, opts = {}) {
   let c = cat, o = { ...opts };
   if (cat === "foreign") { c = "other"; o.foreign = true; }
-  return activeCards().map((k) => { const v = valuePct(k, c, d, o), sb = subState(k, d); return { card: k, ...v, sub: sb, score: v.pct + (sb ? sb.boost : 0) }; })
+  return activeCards().filter((k) => !COSTCO_NETS[cat] || COSTCO_NETS[cat].includes(CARDS[k].net)).map((k) => { const v = valuePct(k, c, d, o), sb = subState(k, d); return { card: k, ...v, sub: sb, score: v.pct + (sb ? sb.boost : 0) }; })
     .sort((a, b) => b.score - a.score);
 }
 
@@ -894,7 +905,7 @@ function setCfg(fn) { fn(); saveCfg(); renderAll(); }
 // ---------------------------------------------------------------------------
 // View: 刷哪张
 // ---------------------------------------------------------------------------
-const TILE_ORDER = ["dining", "grocery", "gas", "other", "transit", "flight_ua", "flight_other", "flight_aa", "hotel_ihg", "hotel_hilton", "hotel_marriott", "hotel_other", "car_rental", "streaming", "utilities", "entertainment", "drugstore", "apple", "red_cross"];
+const TILE_ORDER = ["dining", "grocery", "gas", "other", "transit", "flight_ua", "flight_other", "flight_aa", "hotel_ihg", "hotel_hilton", "hotel_marriott", "hotel_other", "car_rental", "costco", "costco_gas", "costco_online", "streaming", "utilities", "entertainment", "drugstore", "apple", "red_cross"];
 let ABROAD = false, SHEET = null, TODO_ALL = false, TODO_OPEN = null;
 
 // A 5% category that would win but is not activated yet.
@@ -1064,6 +1075,7 @@ function renderSheet() {
       h("span", { class: "note" }, T("例：6x × 0.6¢ = 每 $1 得 6 分、每分约 0.6 美分，合计 3.6%。")),
       ctrls.length ? h("div", { class: "ctrls" }, ctrls) : null,
       list,
+      COSTCO_NETS[cat] ? h("span", { class: "note" }, cat === "costco_online" ? T("costco.com 收 Visa 和 Mastercard；Amex、Discover 各来源说法不一，没列入。") : T("Costco 实体店和加油站只收 Visa 信用卡，其他卡不列。")) : null,
       h("span", { class: "note" }, T("点每分价值可以改，改了会影响所有类别的排名。"))));
   root.hidden = false; document.body.style.overflow = "hidden";
 }
@@ -1175,6 +1187,7 @@ function perkRow(b) {
 const KEYWORDS = [
   ["payment", /payment|autopay|thank you|自动还款|还款/i], ["refund", /refund|credit adj|return/i],
   ["apple", /apple\.com|itunes|app store|apple store/i],
+  ["costco_gas", /costco gas/i], ["costco_online", /costco\.com|costco online/i], ["costco", /costco/i],
   ["hotel_hilton", /hilton|conrad|waldorf|hampton|doubletree|embassy suites|curio|canopy|tapestry|home2/i],
   ["hotel_marriott", /marriott|sheraton|westin|ritz|st\.? regis|w hotel|courtyard|residence inn|fairfield|aloft|moxy|le meridien|autograph/i],
   ["hotel_ihg", /\bihg\b|intercontinental|holiday inn|crowne plaza|kimpton|hotel indigo|staybridge|candlewood|regent/i],
@@ -1185,7 +1198,7 @@ const KEYWORDS = [
   ["car_rental", /hertz|avis|enterprise rent|national car|budget rent|sixt|alamo|turo/i],
   ["transit", /uber(?! eats)|lyft|mta|bart|clipper|metro|transit|parking|toll/i],
   ["streaming", /netflix|hulu|spotify|disney\+|disney plus|hbo|max\.com|youtube premium|peacock|paramount/i],
-  ["gas", /shell|chevron|exxon|mobil|arco|76 |bp |sunoco|valero|costco gas|tesla supercharger|chargepoint|electrify america|gas/i],
+  ["gas", /shell|chevron|exxon|mobil|arco|76 |bp |sunoco|valero|tesla supercharger|chargepoint|electrify america|gas/i],
   ["grocery", /whole foods|trader joe|safeway|kroger|ralphs|vons|h-?mart|99 ranch|sprouts|wegmans|publix|aldi|albertsons|grocery|market/i],
   ["drugstore", /cvs|walgreens|rite aid|pharmacy/i],
   ["red_cross", /red cross/i],
@@ -1280,7 +1293,7 @@ function claudePrompt(txns, card, month) {
 Each line is index|date|description|amount. Amount sign is already normalized: positive = charge, negative = payment, refund or statement credit.
 
 For EVERY line output {"i":index,"merchant":"short clean merchant name","category":one of ${JSON.stringify(CAT_ENUM)},"foreign":bool (foreign currency or foreign merchant),"flag":null or "fee"|"interest"|"subscription"|"duplicate"|"unusual","note":"<=12 words in ${LANG === "en" ? "English" : "Chinese"}, only when flag is set","creditFor":null or a benefit id}
-Category guidance: food delivery = dining; Walmart/Target/Costco = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; Apple / App Store / iTunes purchases = apple; Apple / App Store / iTunes purchases = apple; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
+Category guidance: food delivery = dining; Walmart/Target = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; Costco warehouse = costco, Costco gas station = costco_gas, costco.com = costco_online; Apple / App Store / iTunes purchases = apple; Apple / App Store / iTunes purchases = apple; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
 creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "ihg_fb" (IHG food & beverage credit), "mar_air" (Marriott card airline credit), "ips_fb" / "ips_air" / "ips_insta" (IHG Premier Select food & beverage / airline / Instacart credits), "ua_insta" / "ua_ride" / "ua_renowned" (United Club Card Instacart / rideshare / Renowned Hotels credits). United Airlines purchases = flight_ua. Otherwise null.
 
 Then up to 5 short ${LANG === "en" ? "English" : "Chinese"} observations about habits worth questioning (subscriptions to cancel, avoidable fees, spend jumps). Do not discuss which card to use.
