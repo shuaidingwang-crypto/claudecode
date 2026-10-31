@@ -706,7 +706,7 @@ function perkRow(b) {
   row.append(head);
   const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
   const dl = daysLeft(p.end);
-  const st = u.status === "done" ? ["good", "已用完"] : u.status === "na" ? ["", "N/A"] : dl <= 21 ? ["bad", `${dl} 天`] : dl <= 75 ? ["warn", `${dl} 天`] : ["", `${dl} 天`];
+  const st = u.status === "done" ? ["good", "已用完"] : u.status === "na" ? ["", "不适用"] : dl <= 21 ? ["bad", `${dl} 天`] : dl <= 75 ? ["warn", `${dl} 天`] : ["", `${dl} 天`];
   head.lastChild.append(h("span", { class: "chip " + st[0] }, st[1]));
   row.append(h("span", { class: "note" }, `${p.label} · ${b.how}`));
   if (b.amt) {
@@ -716,7 +716,7 @@ function perkRow(b) {
         h("span", { class: "note" }, "已用 ", editNum(used, (x) => { const nu = Math.min(b.amt, x); setUsage(key, { used: nu, status: nu >= b.amt ? "done" : "open" }); }, { prefix: "$", label: `${b.title} 已用`, fmt: fmt2, step: "0.01" }), ` / $${b.amt}`),
         h("div", { class: "actions" },
           used < b.amt && u.status !== "na" ? h("button", { class: "small", onclick: () => setUsage(key, { used: b.amt, status: "done" }) }, "用完了") : null,
-          h("button", { class: "small ghost", onclick: () => setUsage(key, { status: u.status === "na" ? "open" : "na" }) }, u.status === "na" ? "取消 N/A" : "N/A"))));
+          h("button", { class: "small ghost", onclick: () => setUsage(key, { status: u.status === "na" ? "open" : "na" }) }, u.status === "na" ? "恢复提醒" : "不适用"))));
   } else if (b.cert) {
     const exp = h("input", { type: "date", value: u.expires || "", id: "exp-" + key, "aria-label": "到期日", onchange: (e) => setUsage(key, { expires: e.target.value }) });
     row.append(h("div", { class: "actions" }, h("label", { class: "field" }, h("span", {}, "到期日"), exp),
