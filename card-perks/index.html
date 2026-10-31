@@ -802,7 +802,13 @@ function renderPending() {
   const box = $("#rv-pending"); if (!box) return; box.replaceChildren();
   if (!PENDING.length) return;
   const list = h("div", { class: "panel rows" }, PENDING.map((p, i) => {
-    const sel = h("select", { id: "pd-card-" + i, "aria-label": "哪张卡", onchange: (e) => { p.card = e.target.value; renderPending(); } },
+    const sel = h("select", { id: "pd-card-" + i, "aria-label": "哪张卡", onchange: (e) => {
+      p.card = e.target.value;
+      // Remember a Chase card's last 4 from the filename so the next import is matched automatically.
+      const l4 = (p.name.match(/chase\D*(\d{4})/i) || [])[1];
+      if (l4 && ["mar", "ihg", "ips", "fr"].includes(p.card)) { CFG.last4[p.card] = l4; saveCfg(); }
+      renderPending();
+    } },
       h("option", { value: "", selected: !p.card }, "选择卡…"), Object.entries(CARDS).map(([k, c]) => h("option", { value: k, selected: p.card === k }, c.short)));
     const mo = h("input", { type: "month", id: "pd-month-" + i, value: p.month || "", "aria-label": "月份", onchange: (e) => { p.month = e.target.value; } });
     return h("div", { class: "row" },
@@ -850,6 +856,9 @@ function renderResults() {
     for (const R of RESULTS) {
       const key = R.month + "_" + R.card;
       R.contrib = contributions(R);
+      // Annual fee posts around the account anniversary: use it to fill an unset open month.
+      const feeRow = R.rows.find((r) => /annual (membership )?fee/i.test(r.merchant || "") && /^\d{4}-\d{2}/.test(r.date || ""));
+      if (feeRow && R.card in CFG.anniv && !CFG.anniv[R.card]) { CFG.anniv[R.card] = parseInt(feeRow.date.slice(5, 7), 10); saveCfg(); }
       applyContrib(REVIEWS[key]?.contrib, R.contrib);
       REVIEWS[key] = stripReview(R);
       await saveReview(key);
@@ -960,12 +969,12 @@ function renderSettings() {
   v.append(h("section", {}, h("h2", {}, "Chase 卡号末四位"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     ["mar", "ihg", "ips", "fr"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
       h("input", { id: "l4-" + k, inputmode: "numeric", maxlength: "4", value: CFG.last4[k] || "", placeholder: "1234", onchange: (e) => { CFG.last4[k] = e.target.value.replace(/\D/g, "").slice(0, 4); saveCfg(); } })))),
-    h("span", { class: "note" }, "三张 Chase 卡导出的 CSV 格式一样，靠文件名里的末四位区分。不填也行，导入时手动选。"))));
+    h("span", { class: "note" }, "几张 Chase 卡导出的 CSV 格式一样，靠文件名里的末四位区分。第一次导入时选一下卡，之后会自动记住。"))));
   const months = [["0", "未设置"], ...Array.from({ length: 12 }, (_, i) => [String(i + 1), `${i + 1} 月`])];
   v.append(h("section", {}, h("h2", {}, "开卡月份"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     ["hh", "ips", "ihg", "mar", "aa"].map((k) => h("label", { class: "field" }, h("span", {}, CARDS[k].short),
       h("select", { id: "an-" + k, onchange: (e) => { CFG.anniv[k] = parseInt(e.target.value, 10); saveCfg(); renderAll(); } }, months.map(([val, t]) => h("option", { value: val, selected: String(CFG.anniv[k] || 0) === val }, t)))))),
-    h("span", { class: "note" }, "用于卡年度类福利（免房券、$20k 消费奖励）的周期。"))));
+    h("span", { class: "note" }, "用于卡年度类福利（免房券、$20k 消费奖励）的周期。导入的账单里出现年费时会自动填上（年费一般在开卡周年那期账单收取，可能差一个月）。"))));
 
   v.append(h("section", {}, h("h2", {}, "每分值多少（美分）"), h("div", { class: "panel row" }, h("div", { class: "grid2" },
     Object.keys(CFG.vals).map((c) => h("label", { class: "field" }, h("span", {}, CUR_LABEL[c]), num("val-" + c, CFG.vals[c], (x) => CFG.vals[c] = x, { step: "0.05" })))),
