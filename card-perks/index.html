@@ -26,6 +26,7 @@
   --c-ihg: #2e7353;
   --c-ips: #5b4a9e;
   --c-ua: #1a5f8a;
+  --c-apple: #5f6b78;
   --c-fr: #3a77d6;
   --c-dis: #c2570c;
   --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
@@ -38,7 +39,7 @@
     --bg: #0f141a; --surface: #171e27; --sunk: #1f2833; --fg: #e6ebf1; --muted: #93a0b0; --line: #2b3542;
     --accent: #8ea4ff; --accent-soft: #24305a; --brass: #d9ae50;
     --good: #5fcf94; --good-soft: #153826; --warn: #f0a650; --warn-soft: #3d2a12; --bad: #ff8a80; --bad-soft: #43201d;
-    --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-ips: #b3a4f0; --c-ua: #6fb6e6; --c-fr: #7fb0ff; --c-dis: #f39a55;
+    --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-ips: #b3a4f0; --c-ua: #6fb6e6; --c-apple: #b5bfca; --c-fr: #7fb0ff; --c-dis: #f39a55;
     color-scheme: dark;
   }
 }
@@ -46,7 +47,7 @@
   --bg: #0f141a; --surface: #171e27; --sunk: #1f2833; --fg: #e6ebf1; --muted: #93a0b0; --line: #2b3542;
   --accent: #8ea4ff; --accent-soft: #24305a; --brass: #d9ae50;
   --good: #5fcf94; --good-soft: #153826; --warn: #f0a650; --warn-soft: #3d2a12; --bad: #ff8a80; --bad-soft: #43201d;
-  --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-ips: #b3a4f0; --c-ua: #6fb6e6; --c-fr: #7fb0ff; --c-dis: #f39a55;
+  --c-aa: #8fb0c8; --c-mar: #e08a72; --c-hh: #7fa6ef; --c-ihg: #6fc79c; --c-ips: #b3a4f0; --c-ua: #6fb6e6; --c-apple: #b5bfca; --c-fr: #7fb0ff; --c-dis: #f39a55;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -207,6 +208,12 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"Apple 返现": "Apple Daily Cash",
+"Apple / App Store": "Apple / App Store",
+"需用 Apple Pay 付款；刷实体卡只有 1%": "Pay with Apple Pay; the physical card earns only 1%",
+"Citi AA 续卡：留还是降级": "Citi AA renewal: keep or downgrade",
+"续卡年费变 $150。2027 年还冲 AA 身份、或常飞 AA 国内要托运就留；都不需要就问 Citi 降级成无年费的 MileUp。": "Renewal fee becomes $150. Keep it if you're still chasing AA status in 2027 or often check bags on domestic AA; otherwise ask Citi to downgrade to the no-fee MileUp.",
+
 "处理好了": "Done",
 "Boundless 续卡：留还是降级": "Boundless renewal: keep or downgrade",
 "$95 年费换一张 35k 免房券（12 个月有效）。2027 年至少住一晚 Marriott 就留；一晚都不住就问 Chase 能否降级成无年费卡。": "$95 fee for a 35k free night (valid 12 months). Keep it if you'll stay at least one Marriott night in 2027; if not, ask Chase about downgrading to a no-fee card.",
@@ -550,6 +557,7 @@ const CARDS = {
   ihg: { name: "IHG One Rewards Premier", short: "IHG Premier", cur: "IHG", fee: 99, ftf: 0, color: "var(--c-ihg)" },
   ips: { name: "IHG One Rewards Premier Select", short: "IHG Select", cur: "IHG", fee: 350, ftf: 0, color: "var(--c-ips)" },
   ua:  { name: "United Club Card", short: "United Club", cur: "UA", fee: 695, ftf: 0, color: "var(--c-ua)", owner: "spouse" },
+  apple: { name: "Apple Card", short: "Apple Card", cur: "APL", fee: 0, ftf: 0, color: "var(--c-apple)" },
   mar: { name: "Marriott Bonvoy Boundless", short: "Boundless", cur: "MAR", fee: 95, ftf: 0, color: "var(--c-mar)" },
 };
 
@@ -560,10 +568,10 @@ function defineText() {
     ["dining", T("餐厅")], ["grocery", T("超市 Grocery")], ["gas", T("加油 / EV 充电")], ["other", T("其他一切")],
     ["flight_aa", T("AA 机票")], ["flight_ua", T("United 机票")], ["flight_other", T("其他航司机票")], ["car_rental", T("租车")], ["transit", T("打车 / 公交")],
     ["hotel_hilton", T("Hilton 酒店")], ["hotel_marriott", T("Marriott 酒店")], ["hotel_ihg", T("IHG 酒店")], ["hotel_other", T("其他酒店 / OTA")],
-    ["streaming", T("流媒体")], ["entertainment", T("娱乐 / 演出 / 电影")], ["utilities", T("水电燃气网费")], ["drugstore", T("药店")], ["red_cross", T("Red Cross 捐款")], ["foreign", T("海外消费")],
+    ["streaming", T("流媒体")], ["entertainment", T("娱乐 / 演出 / 电影")], ["utilities", T("水电燃气网费")], ["drugstore", T("药店")], ["red_cross", T("Red Cross 捐款")], ["apple", T("Apple / App Store")], ["foreign", T("海外消费")],
   ];
     CAT_LABEL = Object.fromEntries(CATS);
-  CUR_LABEL = { UA: "United miles", DIS: T("Discover 返现"), UR: T("Chase 点数"), HH: "Hilton", AA: "AA miles", IHG: "IHG", MAR: "Marriott" };
+  CUR_LABEL = { APL: T("Apple 返现"), UA: "United miles", DIS: T("Discover 返现"), UR: T("Chase 点数"), HH: "Hilton", AA: "AA miles", IHG: "IHG", MAR: "Marriott" };
   WHO_LABEL = { me: T("我"), spouse: T("老公"), both: T("一起") };
   BENEFITS = [
     { id: "hh_resort", card: "hh", title: T("Hilton Resort 消费抵扣"), amt: 200, period: "half", how: T("在参与的 Hilton Resorts 直接付房费/杂费，每半年最多 $200。") },
@@ -611,7 +619,7 @@ const DEFAULT_CONFIG = {
   subs: { ips: { target: 5000, bonus: 200000, by: "2027-01-29", opened: "2026-10-29", done: false } }, // welcome offers being chased
   canUse: { me: [], spouse: [] },      // authorized-user cards: his cards I can use / my cards he can use
   last4: { mar: "", ihg: "", ips: "", fr: "", ua: "" },  // Chase card last 4 digits, for CSV matching
-  vals: { UA: 1.2, DIS: 1.0, UR: 1.0, HH: 0.4, AA: 1.45, IHG: 0.6, MAR: 0.75 }, // cents/point; hotel/airline = TPG Oct 2026
+  vals: { APL: 1.0, UA: 1.2, DIS: 1.0, UR: 1.0, HH: 0.4, AA: 1.45, IHG: 0.6, MAR: 0.75 }, // cents/point; hotel/airline = TPG Oct 2026
   anniv: { aa: 0, mar: 0, hh: 0, ihg: 0, ips: 0 },                   // card-open month 1-12, 0 = unset
   freedomQ: {},                        // overrides { "2026Q4": [...] }
   frActivated: {},                     // { "2026Q4": true }
@@ -654,6 +662,9 @@ function earn(card, cat, d, opts = {}) {
       if (["flight_aa", "flight_other", "car_rental", "gas", "grocery", "dining"].includes(cat)) { m = 5; verify = true; n.push(T("2027 新类别（老卡生效日待 Chase 通知）")); }
       else m = 3;
     }
+  } else if (card === "apple") {
+    if (cat === "apple") m = 3;
+    else { m = 2; n.push(T("需用 Apple Pay 付款；刷实体卡只有 1%")); }
   } else if (card === "ua") {
     if (cat === "flight_ua") { m = 5; n.push(T("卡本身 5x；会员基础里程另算")); }
     else if (["dining", "flight_aa", "flight_other", "car_rental", "hotel_other", "hotel_hilton", "hotel_marriott", "hotel_ihg", "transit"].includes(cat)) m = 2;
@@ -714,6 +725,7 @@ const dayChip = (dl) => (dl <= 0 ? T("今天") : dl === 1 ? T("明天") : T`${dl
 const ownerName = () => T("老公");
 function valuePct(card, cat, d, opts = {}) {
   if (cat === "flight_ua" && card !== "ua") cat = "flight_other";
+  if (cat === "apple" && card !== "apple") cat = "other";
   const e = earn(card, cat, d, opts);
   let pct = e.m * CFG.vals[CARDS[card].cur];
   if (opts.foreign && CARDS[card].ftf) { pct -= CARDS[card].ftf * 100; e.notes.push(T("3% 海外交易手续费")); }
@@ -881,7 +893,7 @@ function setCfg(fn) { fn(); saveCfg(); renderAll(); }
 // ---------------------------------------------------------------------------
 // View: 刷哪张
 // ---------------------------------------------------------------------------
-const TILE_ORDER = ["dining", "grocery", "gas", "other", "transit", "flight_ua", "flight_other", "flight_aa", "hotel_ihg", "hotel_hilton", "hotel_marriott", "hotel_other", "car_rental", "streaming", "utilities", "entertainment", "drugstore", "red_cross"];
+const TILE_ORDER = ["dining", "grocery", "gas", "other", "transit", "flight_ua", "flight_other", "flight_aa", "hotel_ihg", "hotel_hilton", "hotel_marriott", "hotel_other", "car_rental", "streaming", "utilities", "entertainment", "drugstore", "apple", "red_cross"];
 let ABROAD = false, SHEET = null, TODO_ALL = false, TODO_OPEN = null;
 
 // A 5% category that would win but is not activated yet.
@@ -949,6 +961,7 @@ function todoRow(t) {
 }
 const PLANS = () => [
   { id: "mar_renew_2027", card: "mar", from: "2026-12-01", date: "2027-01-22", t: T("Boundless 续卡：留还是降级"), d: T("$95 年费换一张 35k 免房券（12 个月有效）。2027 年至少住一晚 Marriott 就留；一晚都不住就问 Chase 能否降级成无年费卡。") },
+  { id: "aa_renew_2027", card: "aa", from: "2027-06-15", date: "2027-08-01", t: T("Citi AA 续卡：留还是降级"), d: T("续卡年费变 $150。2027 年还冲 AA 身份、或常飞 AA 国内要托运就留；都不需要就问 Citi 降级成无年费的 MileUp。") },
   { id: "brilliant_2028", card: "mar", from: "2028-02-01", date: "2028-03-15", t: T("申请 Marriott Bonvoy Brilliant（大聪明卡）"), d: T("Boundless 开卡礼 2026/3/14 到账，满 24 个月后才有大聪明卡开卡礼资格。提交前看 Amex 的资格弹窗；批卡即得白金。") },
 ];
 const GOALS = () => [
@@ -1163,6 +1176,7 @@ function perkRow(b) {
 // ---------------------------------------------------------------------------
 const KEYWORDS = [
   ["payment", /payment|autopay|thank you|自动还款|还款/i], ["refund", /refund|credit adj|return/i],
+  ["apple", /apple\.com|itunes|app store|apple store/i],
   ["hotel_hilton", /hilton|conrad|waldorf|hampton|doubletree|embassy suites|curio|canopy|tapestry|home2/i],
   ["hotel_marriott", /marriott|sheraton|westin|ritz|st\.? regis|w hotel|courtyard|residence inn|fairfield|aloft|moxy|le meridien|autograph/i],
   ["hotel_ihg", /\bihg\b|intercontinental|holiday inn|crowne plaza|kimpton|hotel indigo|staybridge|candlewood|regent/i],
@@ -1172,7 +1186,7 @@ const KEYWORDS = [
   ["flight_other", /united|delta|southwest|alaska air|jetblue|frontier|spirit|air canada|lufthansa|cathay|eva air|ana |jal |airline/i],
   ["car_rental", /hertz|avis|enterprise rent|national car|budget rent|sixt|alamo|turo/i],
   ["transit", /uber(?! eats)|lyft|mta|bart|clipper|metro|transit|parking|toll/i],
-  ["streaming", /netflix|hulu|spotify|disney\+|disney plus|hbo|max\.com|youtube premium|apple\.com\/bill|peacock|paramount/i],
+  ["streaming", /netflix|hulu|spotify|disney\+|disney plus|hbo|max\.com|youtube premium|peacock|paramount/i],
   ["gas", /shell|chevron|exxon|mobil|arco|76 |bp |sunoco|valero|costco gas|tesla supercharger|chargepoint|electrify america|gas/i],
   ["grocery", /whole foods|trader joe|safeway|kroger|ralphs|vons|h-?mart|99 ranch|sprouts|wegmans|publix|aldi|albertsons|grocery|market/i],
   ["drugstore", /cvs|walgreens|rite aid|pharmacy/i],
@@ -1268,7 +1282,7 @@ function claudePrompt(txns, card, month) {
 Each line is index|date|description|amount. Amount sign is already normalized: positive = charge, negative = payment, refund or statement credit.
 
 For EVERY line output {"i":index,"merchant":"short clean merchant name","category":one of ${JSON.stringify(CAT_ENUM)},"foreign":bool (foreign currency or foreign merchant),"flag":null or "fee"|"interest"|"subscription"|"duplicate"|"unusual","note":"<=12 words in ${LANG === "en" ? "English" : "Chinese"}, only when flag is set","creditFor":null or a benefit id}
-Category guidance: food delivery = dining; Walmart/Target/Costco = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
+Category guidance: food delivery = dining; Walmart/Target/Costco = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; Apple / App Store / iTunes purchases = apple; Apple / App Store / iTunes purchases = apple; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
 creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "ihg_fb" (IHG food & beverage credit), "mar_air" (Marriott card airline credit), "ips_fb" / "ips_air" / "ips_insta" (IHG Premier Select food & beverage / airline / Instacart credits), "ua_insta" / "ua_ride" / "ua_renowned" (United Club Card Instacart / rideshare / Renowned Hotels credits). United Airlines purchases = flight_ua. Otherwise null.
 
 Then up to 5 short ${LANG === "en" ? "English" : "Chinese"} observations about habits worth questioning (subscriptions to cancel, avoidable fees, spend jumps). Do not discuss which card to use.
