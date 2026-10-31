@@ -603,7 +603,6 @@ const DEFAULT_CONFIG = {
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
   subs: { ips: { target: 5000, bonus: 200000, by: "2027-01-29", opened: "2026-10-29", done: false } }, // welcome offers being chased
-  who: "me",                           // whose wallet to recommend from: me | spouse | both
   canUse: { me: [], spouse: [] },      // authorized-user cards: his cards I can use / my cards he can use
   last4: { mar: "", ihg: "", ips: "", fr: "", ua: "" },  // Chase card last 4 digits, for CSV matching
   vals: { UA: 1.2, DIS: 1.0, UR: 1.0, HH: 0.4, AA: 1.45, IHG: 0.6, MAR: 0.75 }, // cents/point; hotel/airline = TPG Oct 2026
@@ -697,7 +696,10 @@ function cardsFor(who) {
   if (who === "spouse") return all.filter((k) => CARDS[k].owner || (CFG.canUse.spouse || []).includes(k));
   return all.filter((k) => !CARDS[k].owner || (CFG.canUse.me || []).includes(k));
 }
-function activeCards() { return cardsFor(CFG.who); }
+// Whose wallet this viewer is looking at; kept per device so each person keeps their own view.
+let WHO = "me";
+try { WHO = localStorage.getItem("ymzb:who") || "me"; } catch {}
+function activeCards() { return cardsFor(WHO); }
 // Cards a person holds as primary: their benefits and to-dos belong to them.
 function ownedBy(who) { return Object.keys(CARDS).filter((k) => who === "both" || (who === "spouse" ? !!CARDS[k].owner : !CARDS[k].owner)); }
 const ownerPrefix = (k) => (CARDS[k].owner ? ownerName() + T("的 ") : "");
@@ -885,7 +887,7 @@ function pendingBonus(cat) {
   return null;
 }
 function todos() {
-  const out = [], mine = ownedBy(CFG.who);
+  const out = [], mine = ownedBy(WHO);
   const q = quarterKey(NOW);
   for (const ck of Object.keys(CFG.subs || {})) {
     const sb = mine.includes(ck) && subState(ck); if (!sb) continue;
@@ -1030,7 +1032,7 @@ function renderSheet() {
   root.replaceChildren(
     h("div", { class: "scrim", onclick: closeSheet }),
     h("div", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-label": CAT_LABEL[cat] },
-      h("div", { class: "row-head" }, h("h2", {}, CAT_LABEL[cat] + ` · ${WHO_LABEL[CFG.who]}` + (ABROAD ? T(" · 海外") : "")), h("button", { class: "small ghost", onclick: closeSheet, "aria-label": T("关闭") }, T("关闭"))),
+      h("div", { class: "row-head" }, h("h2", {}, CAT_LABEL[cat] + ` · ${WHO_LABEL[WHO]}` + (ABROAD ? T(" · 海外") : "")), h("button", { class: "small ghost", onclick: closeSheet, "aria-label": T("关闭") }, T("关闭"))),
       h("span", { class: "note" }, T("例：6x × 0.6¢ = 每 $1 得 6 分、每分约 0.6 美分，合计 3.6%。")),
       ctrls.length ? h("div", { class: "ctrls" }, ctrls) : null,
       list,
@@ -1069,7 +1071,7 @@ function renderPerks() {
     h("div", { class: "panel fig" }, h("span", { class: "label" }, T("差额")), h("b", { style: `color:var(${captured >= fees ? "--good" : "--warn"})` }, (captured >= fees ? "+" : "−") + "$" + fmt0(Math.abs(captured - fees))))));
   v.append(h("span", { class: "note" }, T("抵扣只算现金类，免房券价值不计入。导入账单时到账的抵扣会自动勾掉。")));
 
-  const order = ["hh", "ips", "ihg", "mar", "aa", "dis", "fr", "ua"].filter((k) => ownedBy(CFG.who).includes(k)).sort((a, b) => openCount(b) - openCount(a));
+  const order = ["hh", "ips", "ihg", "mar", "aa", "dis", "fr", "ua"].filter((k) => ownedBy(WHO).includes(k)).sort((a, b) => openCount(b) - openCount(a));
   for (const ck of order) {
     const items = BENEFITS.filter((b) => b.card === ck);
     const tracked = items.filter((b) => b.period !== "info"), info = items.filter((b) => b.period === "info");
@@ -1564,7 +1566,7 @@ function renderHeader() {
   const bar = $("#who-bar"); bar.replaceChildren(
     h("span", { class: "note" }, T("看谁的：")),
     h("div", { class: "seg", role: "radiogroup", "aria-label": T("看谁的卡") }, ["me", "spouse", "both"].map((w) =>
-      h("button", { type: "button", role: "radio", "aria-checked": String(CFG.who === w), onclick: () => setCfg(() => { CFG.who = w; }) }, WHO_LABEL[w]))));
+      h("button", { type: "button", role: "radio", "aria-checked": String(WHO === w), onclick: () => (() => { WHO = w; try { localStorage.setItem("ymzb:who", w); } catch {} renderAll(); })() }, WHO_LABEL[w]))));
 }
 function renderAll() { renderHeader(); renderUse(); renderPerks(); renderSettings(); renderSheet(); if (!$("#rv-text")) renderReview(); }
 function showTab(t) {
