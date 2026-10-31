@@ -208,6 +208,9 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"无年费 · 超市和 AA 消费 2x": "No annual fee · 2x at grocery stores and on American",
+"2026/11 由 Platinum Select 降级而来：没有免费托运和优先登机；3% 海外交易手续费。": "Downgraded from Platinum Select in Nov 2026: no free checked bag or preferred boarding; 3% foreign transaction fee.",
+
 "打电话给 Citi：AA 卡降级成 MileUp": "Call Citi: downgrade the AA card to MileUp",
 "不冲 AA 身份了，留着它只剩今年剩下的几个月福利。问 Citi 能否降级成无年费的 MileUp 并按比例退今年的 $99 年费；降级而不是销卡，可以保住卡龄，AA 里程也继续有活动不会过期。": "You're no longer chasing AA status, so keeping it only buys the rest of this card year's perks. Ask Citi to downgrade to the no-fee MileUp and prorate a refund of this year's $99 fee. Downgrading instead of closing keeps the account age and keeps your AA miles active so they don't expire.",
 
@@ -556,7 +559,7 @@ const CARDS = {
   fr:  { name: "Chase Freedom Unlimited", short: "Freedom U", cur: "UR", fee: 0, ftf: 0.03, color: "var(--c-fr)" },
   dis: { name: "Discover it Cash Back", short: "Discover", cur: "DIS", fee: 0, ftf: 0, color: "var(--c-dis)" },
   hh:  { name: "Hilton Honors Aspire (Amex)", short: "Aspire", cur: "HH", fee: 550, ftf: 0, color: "var(--c-hh)" },
-  aa:  { name: "Citi AAdvantage Platinum Select", short: "Citi AA", cur: "AA", fee: 99, ftf: 0, color: "var(--c-aa)" },
+  aa:  { name: "Citi AAdvantage MileUp", short: "MileUp", cur: "AA", fee: 0, ftf: 0.03, color: "var(--c-aa)" },
   ihg: { name: "IHG One Rewards Premier", short: "IHG Premier", cur: "IHG", fee: 99, ftf: 0, color: "var(--c-ihg)" },
   ips: { name: "IHG One Rewards Premier Select", short: "IHG Select", cur: "IHG", fee: 350, ftf: 0, color: "var(--c-ips)" },
   ua:  { name: "United Club Card", short: "United Club", cur: "UA", fee: 695, ftf: 0, color: "var(--c-ua)", owner: "spouse" },
@@ -588,6 +591,7 @@ function defineText() {
     { id: "ihg_20k", card: "ihg", title: T("$20k 消费奖励：$100 + 10k 分"), amt: 0, period: "cardyear", goal: { key: "ihgYear", at: 20000 }, how: T("卡年度内消费满 $20k 且续卡后发放。") },
     { id: "ihg_4th", card: "ihg", title: T("积分兑换第 4 晚免费"), period: "info", how: T("连住 4 晚以上积分房时自动生效。") },
     { id: "ihg_ge", card: "ihg", title: T("Global Entry / TSA PreCheck 抵扣"), period: "info", how: T("每 4 年一次。") },
+    { id: "aa_info", card: "aa", title: T("无年费 · 超市和 AA 消费 2x"), period: "info", how: T("2026/11 由 Platinum Select 降级而来：没有免费托运和优先登机；3% 海外交易手续费。") },
     { id: "ips_fb", card: "ips", title: T("IHG 酒店餐饮抵扣"), amt: 75, period: "quarter", how: T("每季度最多 $75，在 IHG 酒店餐饮消费（挂房账）。") },
     { id: "ips_air", card: "ips", title: T("航空抵扣 $200"), amt: 200, period: "year", how: T("每自然年单笔 $250 以上直接向航司购买，返 $200。据报道活动到 2027/12/31。") },
     { id: "ips_insta", card: "ips", title: T("Instacart 抵扣"), amt: 10, period: "month", verify: true, how: T("每月最多 $10（只有一个来源提到，待核实）。") },
@@ -603,9 +607,6 @@ function defineText() {
     { id: "mar_fna", card: "mar", title: T("周年免房券（≤35k 分）"), amt: 0, period: "cardyear", cert: true, fn: "mar", how: T("续卡后发放，可补最多 15k 分。") },
     { id: "mar_air", card: "mar", title: T("航空消费抵扣（限时）"), amt: 50, period: "half", verify: true, how: T("据报道：航空消费满 $500 后每半年返最多 $50，活动到 2027/6/30，可能需登记或为定向。") },
     { id: "mar_enc", card: "mar", title: T("15 晚房晚积分 + Silver"), period: "info", how: T("自动入账。") },
-    { id: "aa_20k", card: "aa", title: T("$20k 消费换 AA 机票折扣"), amt: 0, period: "cardyear", goal: { key: "aaYear", at: 20000 }, how: T("卡年度消费满 $20k 且续卡得 $125；2027/1/24 后达标的变为 $150。") },
-    { id: "aa_inflight", card: "aa", title: T("机上消费 25% 折扣 → $100 年度抵扣"), period: "info", how: T("2027/1/24 起，25% 折扣换成每年最多 $100 机上餐饮/Wi-Fi 抵扣，另送 Walmart+。") },
-    { id: "aa_bag", card: "aa", title: T("国内航段首件托运行李免费"), period: "info", how: T("本人及同行最多 4 人，需同一订单。") },
   ];
 }
 defineText();
@@ -639,11 +640,8 @@ function earn(card, cat, d, opts = {}) {
   const S = CFG, n = [];
   let m = 1, verify = false;
   if (card === "aa") {
-    const after = d >= AA_REFRESH;
-    if (cat === "flight_aa") m = 2;
-    else if (cat === "gas") m = 2;
-    else if (cat === "dining") { m = 2; verify = true; n.push(after ? T("2027/1/24 改版后餐厅 2x 是否保留未确认") : T("餐厅 2x（凭记忆，未从 Citi 官网核实）")); }
-    else if (after && ["transit", "streaming", "car_rental"].includes(cat)) { m = 2; n.push(T("2027/1/24 起新增")); }
+    // MileUp since the Dec 2026 product change.
+    if (cat === "flight_aa" || cat === "grocery") m = 2;
   } else if (card === "mar") {
     if (cat === "hotel_marriott") { m = 6; n.push(T("卡本身 6x；会员基础积分与卡无关，未计入")); }
     else if (["grocery", "gas", "dining"].includes(cat)) {
@@ -964,7 +962,6 @@ function todoRow(t) {
 }
 const PLANS = () => [
   { id: "mar_renew_2027", card: "mar", from: "2026-12-01", date: "2027-01-22", t: T("Boundless 续卡：留还是降级"), d: T("$95 年费换一张 35k 免房券（12 个月有效）。2027 年至少住一晚 Marriott 就留；一晚都不住就问 Chase 能否降级成无年费卡。") },
-  { id: "aa_downgrade", card: "aa", from: "2026-11-01", date: "2026-11-30", t: T("打电话给 Citi：AA 卡降级成 MileUp"), d: T("不冲 AA 身份了，留着它只剩今年剩下的几个月福利。问 Citi 能否降级成无年费的 MileUp 并按比例退今年的 $99 年费；降级而不是销卡，可以保住卡龄，AA 里程也继续有活动不会过期。") },
   { id: "brilliant_2028", card: "mar", from: "2028-02-01", date: "2028-03-15", t: T("申请 Marriott Bonvoy Brilliant（大聪明卡）"), d: T("Boundless 开卡礼 2026/3/14 到账，满 24 个月后才有大聪明卡开卡礼资格。提交前看 Amex 的资格弹窗；批卡即得白金。") },
 ];
 const GOALS = () => [
@@ -1081,7 +1078,6 @@ function setUsage(key, patch) {
   saveUsage(key); renderPerks(); renderUse();
 }
 const FEE_NOTES = {
-  aa: () => NOW < AA_REFRESH ? T("2027/1/24 起续卡年费 $99 → $150，同时加 $100 机上抵扣、Walmart+、$150 机票折扣。") : "",
   ihg: () => T("2027 年续卡时年费 $99 → $150；非 IHG 的广义旅行 5x 只到 2026/12/31。"),
 };
 function openCount(ck) {
