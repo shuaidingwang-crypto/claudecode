@@ -138,8 +138,19 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 .jar-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .jar-total { font-family: var(--display); font-size: 30px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .jar-total small { font-family: var(--body); font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 6px; }
-.jar-full { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; padding-top: 6px; }
+.jar-full { border: 0; background: var(--surface); border-radius: 999px; cursor: pointer; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; padding: 5px 8px 5px 10px; margin-top: 2px; }
+.jar-full:hover { color: var(--fg); }
 .jar-full svg.i { width: 15px; height: 15px; color: var(--faint); }
+.jar-full svg.i:last-child { transition: transform .2s; }
+.jar-full[aria-expanded="true"] svg.i:last-child { transform: rotate(180deg); }
+.sealed { margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.sealed > button { border: 0; background: var(--surface); border-radius: 16px; padding: 6px 6px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sealed > button[aria-pressed="true"] { box-shadow: 0 0 0 1.5px var(--accent); color: var(--fg); }
+.sealed canvas { width: 100%; height: 92px; display: block; margin-bottom: 4px; }
+.sealed b { font-weight: 500; color: var(--fg); font-size: 13px; }
+.sealed-list { grid-column: 1 / -1; background: var(--surface); border-radius: 16px; padding: 6px 12px; max-height: 260px; overflow: auto; list-style: none; margin: 0; }
+.sealed-list li { display: flex; gap: 10px; align-items: center; padding: 5px 0; font-size: 14px; overflow-wrap: anywhere; }
+.sealed-list .when { margin-left: auto; font-size: 12px; color: var(--faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
 #jar-canvas { display: block; width: 100%; height: 160px; margin: 6px 0 12px; }
 .shelf { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
 .shelf span { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
@@ -225,8 +236,9 @@ button.tic:hover { filter: brightness(.95); }
       <div class="jar">
         <div class="jar-top">
           <div class="jar-total" id="jar-total"></div>
-          <div class="jar-full" id="jar-full" hidden></div>
+          <button class="jar-full" id="jar-full" hidden aria-expanded="false" aria-controls="sealed"></button>
         </div>
+        <div class="sealed" id="sealed" hidden></div>
         <canvas id="jar-canvas" aria-label="石子罐：每做一件事放进一颗石子"></canvas>
         <div class="shelf" id="shelf"></div>
         <p class="milestone" id="milestone" hidden></p>
@@ -405,15 +417,26 @@ button.tic:hover { filter: brightness(.95); }
     if (sorted.length && sorted.length % CAP === 0) full -= 1;
     return { full: full, cur: sorted.slice(full * CAP) };
   }
+  function chunks() {
+    var sorted = s.done.slice().sort(function (a, b) { return a.t - b.t; }), out = [];
+    for (var i = 0; i < sorted.length; i += CAP) out.push(sorted.slice(i, i + CAP));
+    return out;
+  }
   function drawJar() {
-    var c = $("jar-canvas"), dpr = window.devicePixelRatio || 1;
+    var info = currentJar();
+    var finished = paintJar($("jar-canvas"), info.cur, info.full * CAP, true);
+    if (finished === false) requestAnimationFrame(drawJar); else dropAnim = null;
+  }
+  // Paints one jar of pebbles on a canvas; returns false while the drop animation is still running.
+  function paintJar(c, cur, full, animate) {
+    var dpr = window.devicePixelRatio || 1;
     var W = c.clientWidth, H = c.clientHeight;
-    if (!W) return;
+    if (!W) return true;
     c.width = W * dpr; c.height = H * dpr;
     var g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    full = full / CAP;
 
-    var info = currentJar(), cur = info.cur, full = info.full;
-    var jw = Math.min(W - 8, 210), jx = (W - jw) / 2, jy = 16, jh = H - 20, r = 26;
+    var jw = Math.min(W - 8, 210), jx = (W - jw) / 2, jy = 16, jh = H - 20, r = Math.min(26, jw * 0.15);
     var neck = jw * 0.6, nx = (W - neck) / 2;
     function jarPath() {
       g.beginPath();
@@ -426,7 +449,7 @@ button.tic:hover { filter: brightness(.95); }
     }
     jarPath(); g.closePath(); g.fillStyle = css("--glass"); g.fill();
 
-    var pr = 8.5, cols = Math.floor((jw - 10) / (pr * 2)), rowH = pr * 1.72;
+    var pr = 8.5 * Math.min(1, jw / 200), cols = Math.floor((jw - 10) / (pr * 2)), rowH = pr * 1.72;
     var now = performance.now(), animDone = true, hi = css("--hi");
     g.save(); jarPath(); g.closePath(); g.clip();
     cur.forEach(function (d, i) {
@@ -434,7 +457,7 @@ button.tic:hover { filter: brightness(.95); }
       var x = jx + 5 + pr + col * pr * 2 + off - (row % 2 && col === cols - 1 ? pr * 2 : 0);
       x += (rand(i + full * CAP) - 0.5) * 2.2;
       var y = jy + jh - pr - 3 - row * rowH + (rand(i * 3 + 7) - 0.5) * 1.6;
-      if (dropAnim && i === cur.length - 1) {
+      if (animate && dropAnim && i === cur.length - 1) {
         var p = Math.min(1, (now - dropAnim.start) / 560);
         if (p < 1) animDone = false;
         var ease = 1 - Math.pow(1 - p, 3);
@@ -449,7 +472,38 @@ button.tic:hover { filter: brightness(.95); }
     g.beginPath(); g.moveTo(nx - 4, jy - 6); g.lineTo(nx + neck + 4, jy - 6);
     g.lineCap = "round"; g.lineWidth = 3; g.stroke();
 
-    if (!animDone) requestAnimationFrame(drawJar); else dropAnim = null;
+    return animDone;
+  }
+
+  /* ---------- sealed jars ---------- */
+  var sealedOpen = false, sealedSel = null;
+  function md(t) { var d = new Date(t); return (d.getMonth() + 1) + "/" + d.getDate(); }
+  function renderSealed() {
+    var box = $("sealed"), full = currentJar().full, all = chunks();
+    $("jar-full").setAttribute("aria-expanded", sealedOpen ? "true" : "false");
+    box.hidden = !sealedOpen || full < 1;
+    box.textContent = "";
+    if (box.hidden) return;
+    var canvases = [];
+    for (var i = 0; i < full; i++) (function (i) {
+      var jar = all[i];
+      var b = el("button"); b.setAttribute("aria-pressed", sealedSel === i ? "true" : "false");
+      b.setAttribute("aria-label", "第 " + (i + 1) + " 罐，" + md(jar[0].t) + " 到 " + md(jar[jar.length - 1].t) + "，点开看里面");
+      var cv = el("canvas"); b.appendChild(cv); canvases.push([cv, jar, i]);
+      b.appendChild(el("b", null, "第 " + (i + 1) + " 罐"));
+      b.appendChild(el("span", null, md(jar[0].t) + " – " + md(jar[jar.length - 1].t)));
+      b.addEventListener("click", function () { sealedSel = sealedSel === i ? null : i; renderSealed(); });
+      box.appendChild(b);
+    })(i);
+    if (sealedSel != null && all[sealedSel]) {
+      var ul = el("ul", "sealed-list");
+      all[sealedSel].slice().reverse().forEach(function (d) {
+        var li = el("li"); li.appendChild(tagIcon(d.tag)); li.appendChild(el("span", null, d.text));
+        li.appendChild(el("span", "when", md(d.t))); ul.appendChild(li);
+      });
+      box.appendChild(ul);
+    }
+    canvases.forEach(function (x) { paintJar(x[0], x[1], x[2] * CAP, false); });
   }
 
   function renderJar() {
@@ -460,7 +514,7 @@ button.tic:hover { filter: brightness(.95); }
     var full = currentJar().full;
     var jf = $("jar-full"); jf.textContent = ""; jf.hidden = full < 1;
     for (var i = 0; i < Math.min(full, 6); i++) jf.appendChild(icon("i-jar"));
-    if (full) jf.appendChild(document.createTextNode("装满过 " + full + " 罐"));
+    if (full) { jf.appendChild(document.createTextNode("装满过 " + full + " 罐")); jf.appendChild(icon("i-down")); }
 
     var sh = $("shelf"); sh.textContent = "";
     TAGS.forEach(function (t) {
@@ -472,6 +526,7 @@ button.tic:hover { filter: brightness(.95); }
     m.hidden = !s.milestone;
     if (s.milestone) { m.appendChild(icon("i-sparkle")); m.appendChild(document.createTextNode("第 " + s.milestone + " 件了。")); }
     drawJar();
+    renderSealed();
   }
 
   /* ---------- dump / one ---------- */
@@ -637,6 +692,7 @@ button.tic:hover { filter: brightness(.95); }
   });
   $("done-in").addEventListener("keydown", function (e) { if (e.key === "Enter") $("done-go").click(); });
   $("more").addEventListener("click", function () { showDays += 7; render(); });
+  $("jar-full").addEventListener("click", function () { sealedOpen = !sealedOpen; if (!sealedOpen) sealedSel = null; renderSealed(); });
   $("flip-go").addEventListener("click", function () {
     if (!s.done.length) return;
     var d = s.done[Math.floor(Math.random() * s.done.length)];
