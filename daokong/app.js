@@ -1,4 +1,5 @@
 import { askJSON, getApiKey, setApiKey, testKey } from "./ai.js";
+import { paintVessel, SHAPES } from "./jar.js";
 
 (function () {
   var KEY = "daokong-v1";
@@ -171,106 +172,20 @@ import { askJSON, getApiKey, setApiKey, testKey } from "./ai.js";
     if (finished === false) requestAnimationFrame(drawJar); else dropAnim = null;
   }
   // Paints one jar of pebbles on a canvas; returns false while the drop animation is still running.
-  // Paints one jar of pebbles on a canvas; returns false while the drop animation is still running.
-  // Flat, Morandi-like: the jar is one quiet shape a shade off the background, no outline, no shine;
-  // pebbles are flat stones of close values that settle where they fall. sealed: draw a lid; lidP (0..1) lowers it.
-  var layoutCache = {};
-  function settle(n, seed, left, right, floor, r0) {
-    // Greedy drop: each pebble tries a few x positions and keeps the one where it comes to rest lowest.
-    var key = [n, seed, left | 0, right | 0, floor | 0, r0.toFixed(2)].join(":");
-    var hit = layoutCache[key]; if (hit) return hit;
-    var out = [];
-    for (var i = 0; i < n; i++) {
-      var r = r0 * (0.86 + rand(seed + i * 13) * 0.28), best = null;
-      for (var t = 0; t < 14; t++) {
-        var x = left + r + rand(seed + i * 31 + t * 7) * (right - left - 2 * r), y = floor - r;
-        for (var j = 0; j < out.length; j++) {
-          var o = out[j], dx = x - o.x, rr = r + o.r;
-          if (Math.abs(dx) < rr) y = Math.min(y, o.y - Math.sqrt(rr * rr - dx * dx));
-        }
-        if (!best || y > best.y + 0.5) best = { x: x, y: y, r: r };
-      }
-      out.push(best);
-    }
-    layoutCache[key] = out;
-    return out;
-  }
+  // Paints one jar of pebbles (see jar.js); returns false while the drop animation is still running.
+  // Flat and quiet: one vessel shape a shade off its background, flat pebbles that settle where they fall.
   function paintJar(c, cur, full, animate, sealed, lidP) {
-    var dpr = window.devicePixelRatio || 1;
-    var W = c.clientWidth, H = c.clientHeight;
-    if (!W) return true;
-    c.width = W * dpr; c.height = H * dpr;
-    var g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-    var jarIndex = Math.round(full / CAP);
-
-    // Proportions: a little taller than wide, short wide neck, generous corners.
-    var top = 12, bottomPad = 6, jh = H - top - bottomPad;
-    var jw = Math.min(W - 12, jh * 0.8, 180);
-    var cx = W / 2, jx = cx - jw / 2, by = top + jh;
-    var lipH = Math.max(5, jh * 0.05), neckW = jw * 0.56, neckH = jh * 0.07;
-    var shY = top + lipH + neckH, rTop = jw * 0.22, rBot = jw * 0.16;
-    function body() {
-      var nx = cx - neckW / 2;
-      g.beginPath();
-      g.moveTo(nx, top + lipH);
-      g.lineTo(nx, shY - rTop * 0.35);
-      g.quadraticCurveTo(nx, shY, nx - (neckW * 0.1), shY);
-      g.lineTo(jx + rTop, shY);
-      g.quadraticCurveTo(jx, shY, jx, shY + rTop);
-      g.lineTo(jx, by - rBot);
-      g.quadraticCurveTo(jx, by, jx + rBot, by);
-      g.lineTo(jx + jw - rBot, by);
-      g.quadraticCurveTo(jx + jw, by, jx + jw, by - rBot);
-      g.lineTo(jx + jw, shY + rTop);
-      g.quadraticCurveTo(jx + jw, shY, jx + jw - rTop, shY);
-      g.lineTo(nx + neckW + neckW * 0.1, shY);
-      g.quadraticCurveTo(nx + neckW, shY, nx + neckW, shY - rTop * 0.35);
-      g.lineTo(nx + neckW, top + lipH);
-      g.closePath();
+    var jarIndex = Math.round(full / CAP), drop = null, animDone = true;
+    if (animate && dropAnim && cur.length) {
+      var k = Math.min(1, (performance.now() - dropAnim.start) / 600);
+      if (k < 1) animDone = false;
+      drop = { index: cur.length - 1, p: k };
     }
-    var cs = getComputedStyle(c);
-    body(); g.fillStyle = cs.getPropertyValue("--jar").trim(); g.fill();
-    // The lip: a slightly deeper band, the only "detail".
-    var lipW = neckW + 6;
-    g.beginPath();
-    if (g.roundRect) g.roundRect(cx - lipW / 2, top, lipW, lipH, lipH / 2); else g.rect(cx - lipW / 2, top, lipW, lipH);
-    g.fillStyle = cs.getPropertyValue("--jar-lip").trim(); g.fill();
-
-    // Pebbles, sized so CAP of them fill the body to about the shoulder.
-    var pad = Math.max(3, jw * 0.035), left = jx + pad, right = jx + jw - pad, floor = by - pad;
-    var area = (right - left) * (floor - shY - rTop * 0.5);
-    var r0 = Math.sqrt(0.56 * area / (CAP * Math.PI));
-    var spots = settle(cur.length, 97 + jarIndex * 7919, left, right, floor, r0);
-    var now = performance.now(), animDone = true;
-    g.save(); body(); g.clip();
-    cur.forEach(function (d, i) {
-      var p = spots[i], y = p.y;
-      if (animate && dropAnim && i === cur.length - 1) {
-        var k = Math.min(1, (now - dropAnim.start) / 600);
-        if (k < 1) animDone = false;
-        var ease = k < 1 ? 1 - Math.pow(1 - k, 3) : 1;
-        y = (top - p.r) + (p.y - (top - p.r)) * ease;
-      }
-      var rot = (rand(i * 11 + jarIndex) - 0.5) * 1.2;
-      g.beginPath(); g.ellipse(p.x, y, p.r * 1.04, p.r * 0.9, rot, 0, Math.PI * 2);
-      g.fillStyle = color(d.tag); g.fill();
+    paintVessel(c, {
+      shape: s.shape || "meiping", items: cur, colorOf: color, cap: CAP, seed: 97 + jarIndex * 7919,
+      jarColor: getComputedStyle(c).getPropertyValue("--jar").trim(), lidColor: css("--lid"),
+      sealed: sealed, lidP: lidP, drop: drop
     });
-    g.restore();
-
-    // A single hairline for the table it stands on.
-    g.fillStyle = cs.getPropertyValue("--jar-lip").trim();
-    g.fillRect(Math.max(0, cx - jw * 0.9), by, Math.min(W, jw * 1.8), 1);
-
-    if (sealed) {
-      var e = lidP == null ? 1 : 1 - Math.pow(1 - lidP, 3);
-      var lidW = lipW + 8, lidH = lipH + 4, ly = top - 4 - (1 - e) * 24;
-      g.globalAlpha = e;
-      g.beginPath();
-      if (g.roundRect) g.roundRect(cx - lidW / 2, ly, lidW, lidH, 3); else g.rect(cx - lidW / 2, ly, lidW, lidH);
-      g.fillStyle = css("--lid"); g.fill();
-      g.globalAlpha = 1;
-    }
-
     return animDone;
   }
 
@@ -334,8 +249,8 @@ import { askJSON, getApiKey, setApiKey, testKey } from "./ai.js";
       "只回 JSON：{\"index\": 编号, \"why\": \"一句话说为什么，温和具体，不超过 30 个字，不用感叹号，用“你”称呼\"}\n\n" + lines,
       PICK_SCHEMA, "medium"
     ).then(function (r) {
-      var k = r && Number(r.index);
-      if (!(k >= 0 && k < jar.length)) return fallbackPick(jar);
+      var k = r ? Number(r.index) : NaN; // no AI route gives null, and null >= 0 is true in JS
+      if (!(Number.isInteger(k) && k >= 0 && k < jar.length)) return fallbackPick(jar);
       return { id: jar[k].id, why: String(r.why || "").slice(0, 60) };
     }, function () { return fallbackPick(jar); });
   }
@@ -713,6 +628,15 @@ import { askJSON, getApiKey, setApiKey, testKey } from "./ai.js";
       : hasKey ? "已保存 key。自动分类和挑「最有意思的一件」会用 Claude。" : "没有 key 时，用关键词来猜分类。";
     $("key-del").hidden = !hasKey; $("key-test").hidden = !hasKey;
     $("preview-cere").hidden = !currentJar().full;
+    var sp = $("shape-pick"); sp.textContent = "";
+    Object.keys(SHAPES).forEach(function (k) {
+      var b = el("button", "shape-opt"); b.setAttribute("aria-pressed", (s.shape || "meiping") === k ? "true" : "false");
+      var cv = el("canvas"); b.appendChild(cv); b.appendChild(el("span", null, SHAPES[k].name));
+      b.addEventListener("click", function () { s.shape = k; save(); renderSettings(); render(); });
+      sp.appendChild(b);
+      var demo = s.done.length ? s.done.slice(-24) : [0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2].map(function (n) { return { tag: TAGS[n].k }; });
+      requestAnimationFrame(function () { paintVessel(cv, { shape: k, items: demo, colorOf: color, cap: CAP, seed: 3, jarColor: getComputedStyle(cv).getPropertyValue("--jar").trim(), lidColor: css("--lid") }); });
+    });
     $("load-sample").hidden = !!(s.done.length || s.dumps.length);
     $("clear-label").textContent = clearArmed ? "再点一次，确认清空" : "清空所有数据";
     $("clear-all").classList.toggle("danger", clearArmed);

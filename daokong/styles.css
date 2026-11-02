@@ -193,7 +193,7 @@ input, textarea, select { font-size: 16px !important; }
 
 .shelf-grid { display: flex; flex-direction: column; gap: 22px; }
 .shelf-row { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.shelf-row::after { content: ""; position: absolute; left: 0; right: 0; top: 112px; height: 3px; border-radius: 2px; background: var(--line); }
+.shelf-row::after { content: ""; position: absolute; left: 0; right: 0; top: 114px; height: 3px; border-radius: 2px; background: var(--line); }
 .slot { border: 0; background: none; cursor: pointer; padding: 0; display: flex; flex-direction: column; align-items: center; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; border-radius: 12px; }
 .slot canvas { width: 100%; height: 118px; display: block; margin-bottom: 3px; }
 .slot b { font-family: var(--display); font-weight: 500; font-size: 14px; color: var(--fg); margin-top: 10px; }
@@ -259,3 +259,7 @@ button.tic:hover { filter: brightness(.95); }
 canvas { --jar: var(--jar-on-surface); }
 
 .jar canvas { --jar: var(--jar-on-sunk); }
+.shape-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.shape-opt { border: 0; background: var(--sunk); border-radius: 16px; padding: 6px 4px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); }
+.shape-opt canvas { width: 100%; height: 84px; display: block; --jar: var(--jar-on-sunk); }
+.shape-opt[aria-pressed="true"] { box-shadow: 0 0 0 1.5px var(--accent); color: var(--fg); }
