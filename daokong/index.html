@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>倒空</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+/* Layout: a phone-shaped app with a bottom icon bar; on phones the app goes edge to edge. Mist-blue palette, light + dark. */
+:root {
+  --bg: #E6EBF0; --surface: #F8FAFC; --sunk: #EDF1F5; --fg: #1F2733; --muted: #6A7687; --faint: #A9B3C0;
+  --line: #DDE3EA; --accent: #3F5A8C; --accent-soft: #E1E8F3; --on-accent: #F8FAFC;
+  --glass: rgba(255, 255, 255, .5); --hi: rgba(255, 255, 255, .28);
+  --t-body: #8FB08A; --t-people: #D59A8C; --t-hand: #86A6C9; --t-home: #D9B56E; --t-mind: #A99BC9; --t-none: #C3C9D0;
+  --shadow: 0 1px 2px rgba(20, 30, 50, .04), 0 18px 40px -18px rgba(20, 30, 50, .18);
+  --display: "Noto Serif SC", "Songti SC", serif;
+  --body: "Noto Sans SC", "PingFang SC", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161D; --surface: #19202A; --sunk: #222B37; --fg: #E3E9F0; --muted: #8E9AAA; --faint: #566273;
+    --line: #2A3442; --accent: #9DB4E0; --accent-soft: #243149; --on-accent: #11161D;
+    --glass: rgba(255, 255, 255, .04); --hi: rgba(255, 255, 255, .14);
+    --t-body: #9DBB98; --t-people: #DBA698; --t-hand: #96B3D3; --t-home: #DDBE80; --t-mind: #B6A9D2; --t-none: #4A5058;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .25), 0 18px 40px -18px rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161D; --surface: #19202A; --sunk: #222B37; --fg: #E3E9F0; --muted: #8E9AAA; --faint: #566273;
+  --line: #2A3442; --accent: #9DB4E0; --accent-soft: #243149; --on-accent: #11161D;
+  --glass: rgba(255, 255, 255, .04); --hi: rgba(255, 255, 255, .14);
+  --t-body: #9DBB98; --t-people: #DBA698; --t-hand: #96B3D3; --t-home: #DDBE80; --t-mind: #B6A9D2; --t-none: #4A5058;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .25), 0 18px 40px -18px rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .3s;
+}
+button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+.page { max-width: 420px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+/* toast */
+.toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); z-index: 20; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; background: var(--fg); color: var(--surface); border-radius: 16px; padding: 8px 6px 8px 14px; display: flex; align-items: center; gap: 10px; font-size: 14px; width: max-content; max-width: min(360px, calc(100vw - 32px)); box-sizing: border-box; box-shadow: var(--shadow); transition: opacity .25s, transform .25s; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast svg.i { width: 18px; height: 18px; }
+.toast span { min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
+.toast button { border: 0; background: transparent; color: inherit; font-size: 13px; padding: 6px 10px; border-radius: 10px; cursor: pointer; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
+
+/* app shell */
+.app { background: var(--surface); border-radius: 30px; box-shadow: var(--shadow); overflow: clip; display: flex; flex-direction: column; min-height: 680px; }
+@media (max-width: 480px) {
+  body { padding-block: 12px 0; }
+  .app { margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))) calc(-1 * max(16px, env(safe-area-inset-right, 0px))); border-radius: 26px 26px 0 0; min-height: calc(100vh - 140px); }
+}
+.top { display: flex; align-items: center; gap: 12px; padding: 22px 20px 8px; }
+.logo { width: 34px; height: 34px; border-radius: 11px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
+.logo svg.i { width: 19px; height: 19px; }
+.top h1 { font-family: var(--display); font-weight: 600; font-size: 20px; margin: 0; letter-spacing: .1em; line-height: 1.2; }
+.top .greet { font-size: 12px; color: var(--muted); display: block; letter-spacing: 0; font-family: var(--body); font-weight: 400; }
+.top .spacer { flex: 1; }
+.icon-btn { border: 0; background: var(--sunk); width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; cursor: pointer; color: var(--muted); }
+.icon-btn:hover { color: var(--fg); }
+
+.view { flex: 1; padding: 12px 20px 24px; min-width: 0; }
+.view-title { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+
+/* bottom bar */
+.bar { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); }
+.bar button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; font-size: 11px; color: var(--faint); cursor: pointer; border-radius: 14px; }
+.bar button svg.i { width: 23px; height: 23px; }
+.bar button[aria-selected="true"] { color: var(--accent); }
+.bar button[aria-selected="true"] .pill { background: var(--accent-soft); }
+.bar .pill { padding: 3px 16px; border-radius: 999px; display: grid; place-items: center; transition: background-color .2s; position: relative; }
+.bar .badge { position: absolute; top: 2px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+
+/* composer */
+.composer { display: flex; align-items: flex-end; gap: 8px; background: var(--sunk); border-radius: 20px; padding: 6px 6px 6px 14px; }
+.composer:focus-within { box-shadow: 0 0 0 1.5px var(--accent); }
+.composer textarea, .composer input { flex: 1; min-width: 0; font: inherit; color: var(--fg); background: transparent; border: 0; padding: 8px 0; resize: none; }
+.composer textarea { min-height: 48px; max-height: 140px; }
+.composer textarea::placeholder, .composer input::placeholder { color: var(--faint); }
+.composer textarea:focus-visible, .composer input:focus-visible { outline: none; }
+.send { border: 0; width: 38px; height: 38px; border-radius: 13px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; cursor: pointer; flex: none; }
+.send svg.i { width: 19px; height: 19px; stroke-width: 2; }
+.hint { font-size: 12px; color: var(--muted); }
+.sub-hint { margin: 8px 4px 0; }
+
+/* dump list */
+.notes-list { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.note { background: var(--sunk); border-radius: 18px; padding: 12px 10px 8px 14px; transition: opacity .35s, transform .35s; }
+.note p { margin: 0 4px 0 0; overflow-wrap: anywhere; }
+.note .meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 4px; }
+.note .when { font-size: 12px; color: var(--faint); }
+.note .acts { display: flex; gap: 2px; }
+.act { border: 0; background: none; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; color: var(--muted); }
+.act:hover { background: var(--surface); color: var(--accent); }
+.act svg.i { width: 19px; height: 19px; }
+.note.gone { opacity: 0; transform: translateX(12px); }
+.older { margin-top: 16px; }
+.older summary { cursor: pointer; font-size: 13px; color: var(--muted); list-style: none; display: flex; align-items: center; gap: 6px; padding: 6px 2px; }
+.older summary::-webkit-details-marker { display: none; }
+.older summary svg.i { width: 16px; height: 16px; transition: transform .2s; }
+.older[open] summary svg.i { transform: rotate(180deg); }
+.older .note { opacity: .7; }
+.empty { color: var(--muted); font-size: 14px; margin: 6px 2px 16px; display: flex; align-items: center; gap: 8px; }
+
+/* today */
+.one { background: var(--accent-soft); border-radius: 24px; padding: 22px 20px 18px; }
+.one .label { font-size: 12px; color: var(--accent); letter-spacing: .1em; display: flex; align-items: center; gap: 6px; }
+.one .label svg.i { width: 16px; height: 16px; }
+.one .what { font-family: var(--display); font-size: 22px; font-weight: 500; margin: 10px 0 18px; overflow-wrap: anywhere; line-height: 1.45; }
+.one .acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn { border: 0; background: var(--accent); color: var(--on-accent); font-size: 14px; padding: 9px 16px 9px 12px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.btn svg.i { width: 18px; height: 18px; stroke-width: 2; }
+.btn.quiet { background: transparent; color: var(--muted); }
+.btn.quiet:hover { color: var(--fg); }
+
+/* jar */
+.jar { background: var(--sunk); border-radius: 24px; padding: 16px 16px 14px; margin-bottom: 16px; }
+.jar-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.jar-total { font-family: var(--display); font-size: 30px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.jar-total small { font-family: var(--body); font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.jar-full { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; padding-top: 6px; }
+.jar-full svg.i { width: 15px; height: 15px; color: var(--faint); }
+#jar-canvas { display: block; width: 100%; height: 160px; margin: 6px 0 12px; }
+.shelf { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.shelf span { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
+.shelf .tic { width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center; }
+.shelf .tic svg.i { width: 17px; height: 17px; }
+.shelf b { font-weight: 500; font-size: 14px; color: var(--fg); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.milestone { font-size: 13px; color: var(--accent); margin: 10px 0 0; display: flex; align-items: center; gap: 6px; }
+.milestone svg.i { width: 16px; height: 16px; }
+.flip { margin-top: 12px; background: var(--surface); border-radius: 16px; padding: 10px 6px 10px 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.flip p { margin: 0; min-width: 0; font-size: 14px; overflow-wrap: anywhere; line-height: 1.5; }
+.flip p em { font-style: normal; color: var(--muted); font-size: 12px; display: block; }
+
+.tagrow { display: flex; gap: 6px; margin: 10px 2px 0; flex-wrap: wrap; }
+.tagbtn { border: 0; background: none; color: var(--muted); font-size: 12px; padding: 4px 10px 4px 6px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 0 1px var(--line); }
+.tagbtn svg.i { width: 15px; height: 15px; }
+.tagbtn[aria-pressed="true"] { color: var(--fg); box-shadow: 0 0 0 1.5px var(--fg); }
+
+.day { margin-top: 20px; }
+.day h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 0 0 6px; letter-spacing: .06em; }
+.day ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.day li { padding: 6px 0; overflow-wrap: anywhere; display: flex; gap: 10px; align-items: center; }
+.day .tic { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; }
+.day .tic svg.i { width: 15px; height: 15px; }
+.more { margin-top: 14px; border: 0; background: none; color: var(--muted); font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.more svg.i { width: 16px; height: 16px; }
+
+.foot { font-size: 12px; color: var(--faint); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .note, body, .bar .pill, .toast { transition: none; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6L6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-jar" viewBox="0 0 24 24"><path d="M8 3h8"/><path d="M9 3v2.5C6.6 6.6 5 8.6 5 11v7a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-7c0-2.4-1.6-4.4-4-5.5V3"/><path d="M8 15.5h8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 8h10a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3c4 0 6 10 10 10h5"/><path d="M3 17h3c1.6 0 2.8-1.6 4-3.5M14 9.5C15 8 16.2 7 18 7h3"/><path d="M18 4l3 3-3 3M18 14l3 3-3 3"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 4v5h5"/><path d="M4.6 14a8 8 0 1 0 1.9-8.2L4 9"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14z"/><path d="M5 19l7-7"/></symbol>
+    <symbol id="t-body" viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></symbol>
+    <symbol id="t-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.8-4-5.6"/></symbol>
+    <symbol id="t-hand" viewBox="0 0 24 24"><path d="M14.5 3.5l6 6-8 8-6-6z"/><path d="M6.5 11.5L4 20l8.5-2.5"/></symbol>
+    <symbol id="t-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="t-mind" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="t-none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <section class="app" aria-label="倒空 演示">
+    <header class="top">
+      <div class="logo"><svg class="i"><use href="#i-leaf"/></svg></div>
+      <h1>倒空<span class="greet" id="greet"></span></h1>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="reset" aria-label="恢复示例数据" title="恢复示例数据"><svg class="i"><use href="#i-reset"/></svg></button>
+    </header>
+
+    <div class="view" id="v-dump" hidden>
+      <p class="view-title"><svg class="i"><use href="#i-pen"/></svg>脑子里在转的，先放这里</p>
+      <div class="composer">
+        <textarea id="dump-in" placeholder="写下来就好，不用分类"></textarea>
+        <button class="send" id="dump-go" aria-label="倒出来"><svg class="i"><use href="#i-up"/></svg></button>
+      </div>
+      <ul class="notes-list" id="dump-list"></ul>
+      <details class="older" id="older-wrap" hidden><summary><svg class="i"><use href="#i-down"/></svg>更早的念头，已经沉下去了</summary><ul class="notes-list" id="older-list"></ul></details>
+    </div>
+
+    <div class="view" id="v-one" hidden>
+      <p class="view-title"><svg class="i"><use href="#i-sun"/></svg>可以选一件，也可以不选</p>
+      <div id="one-box"></div>
+    </div>
+
+    <div class="view" id="v-done">
+      <div class="jar">
+        <div class="jar-top">
+          <div class="jar-total" id="jar-total"></div>
+          <div class="jar-full" id="jar-full" hidden></div>
+        </div>
+        <canvas id="jar-canvas" aria-label="石子罐：每做一件事放进一颗石子"></canvas>
+        <div class="shelf" id="shelf"></div>
+        <p class="milestone" id="milestone" hidden></p>
+        <div class="flip"><p id="flip-text"><em>以前的某一天</em>翻一件做过的事看看</p><button class="act" id="flip-go" aria-label="翻一件"><svg class="i"><use href="#i-shuffle"/></svg></button></div>
+      </div>
+
+      <div class="composer">
+        <input type="text" id="done-in" placeholder="刚做了什么？小事也算">
+        <button class="send" id="done-go" aria-label="放进罐子"><svg class="i"><use href="#i-plus"/></svg></button>
+      </div>
+      <div class="tagrow" id="tagrow"></div>
+      <div id="done-list"></div>
+      <button class="more" id="more" hidden><svg class="i"><use href="#i-down"/></svg>看更早的</button>
+    </div>
+
+    <nav class="bar" role="tablist">
+      <button role="tab" aria-selected="false" data-v="dump"><span class="pill"><svg class="i"><use href="#i-pen"/></svg></span>倒出来</button>
+      <button role="tab" aria-selected="false" data-v="one"><span class="pill"><svg class="i"><use href="#i-sun"/></svg><span class="badge" id="one-badge" hidden></span></span>今天一件</button>
+      <button role="tab" aria-selected="true" data-v="done"><span class="pill"><svg class="i"><use href="#i-jar"/></svg></span>做过的</button>
+    </nav>
+  </section>
+
+  <p class="foot">示例数据，只存在这个浏览器里</p>
+  <div class="toast" id="toast" role="status" aria-live="polite"><svg class="i"><use href="#i-sun"/></svg><span id="toast-text"></span><button id="toast-go">去看看</button></div>
+</div>
+
+<script>
+(function () {
+  var KEY = "daokong-demo-v2";
+  var DAY = 86400000, CAP = 60;
+  var TAGS = [
+    { k: "body", n: "身体" }, { k: "people", n: "人" }, { k: "hand", n: "手艺" },
+    { k: "home", n: "家" }, { k: "mind", n: "心" }
+  ];
+  function dayKey(t) { var d = new Date(t); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+  function startOfToday() { var d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function color(tag) { return css("--t-" + (tag || "none")); }
+  function tint(hex, a) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex); if (!m) return hex;
+    var v = parseInt(m[1], 16); return "rgba(" + (v >> 16) + "," + ((v >> 8) & 255) + "," + (v & 255) + "," + a + ")";
+  }
+
+  function seed() {
+    var n = Date.now(), t0 = startOfToday();
+    // [days ago, hour, text, tag]; gaps between days are deliberate
+    var raw = [
+      [0, 9, "早上晒了二十分钟太阳", "body"], [1, 20, "给妈妈回了消息", "people"], [1, 15, "读完《被讨厌的勇气》第三章", "mind"],
+      [1, 12, "做了番茄炒蛋", "home"], [3, 16, "整理了书桌", "home"], [3, 10, "河边走了四十分钟", "body"],
+      [4, 21, "写了半页日记", "mind"], [6, 14, "陶艺体验课，捏了一个歪碗", "hand"], [6, 19, "和 L 吃了饭", "people"],
+      [7, 11, "换了床单", "home"], [9, 9, "做了十分钟拉伸", "body"], [9, 16, "画了一张窗外的速写", "hand"],
+      [10, 13, "去菜市场买了菜", "home"], [12, 22, "睡前冥想十分钟", "mind"], [13, 10, "游泳", "body"],
+      [13, 18, "给老朋友打了电话", "people"], [14, 15, "修好了阳台的灯", "home"], [16, 11, "做了第一次面包，失败了", "hand"],
+      [17, 17, "散步", "body"], [18, 20, "看完一部电影", "mind"], [19, 9, "早起看日出", "body"],
+      [21, 14, "清理了衣柜", "home"], [22, 19, "和邻居聊了一会儿", "people"], [23, 10, "第二次面包，成了", "hand"],
+      [25, 16, "爬山", "body"], [26, 21, "把想法写成了一页纸", "mind"], [27, 12, "炖了一锅汤", "home"],
+      [29, 15, "去图书馆待了一下午", "mind"], [30, 10, "骑车", "body"], [31, 19, "参加了读书会", "people"],
+      [33, 14, "缝好了外套扣子", "hand"], [34, 11, "浇花", "home"], [36, 9, "散步", "body"],
+      [37, 20, "给姐姐寄了明信片", "people"], [38, 16, "学会了一首吉他和弦", "hand"], [40, 10, "瑜伽", "body"],
+      [41, 22, "写了一封不寄出的信", "mind"], [43, 13, "收拾了冰箱", "home"], [44, 15, "在公园坐了一小时", "mind"],
+      [46, 10, "游泳", "body"], [47, 18, "帮朋友搬家", "people"], [48, 14, "做了一个木头书签", "hand"],
+      [50, 11, "整理了旧照片的一个文件夹", "home"], [51, 9, "散步", "body"], [52, 20, "认真做了一顿晚饭", "home"],
+      [54, 16, "画了一张水彩", "hand"], [55, 10, "跑了三公里", "body"], [57, 21, "读完一本小说", "mind"],
+      [58, 13, "约了体检", "body"], [60, 18, "和 L 视频", "people"], [61, 15, "拼完一个拼图", "hand"],
+      [62, 10, "大扫除", "home"], [64, 9, "散步", "body"], [65, 19, "去看了展", "mind"],
+      [66, 12, "做了饺子", "home"], [68, 17, "和家人吃饭", "people"], [69, 10, "游泳", "body"],
+      [70, 14, "缝了一个布袋", "hand"], [72, 21, "睡前不看手机", "mind"], [73, 11, "爬山", "body"],
+      [74, 15, "收拾了书架", "home"], [76, 20, "给老同事写了感谢", "people"], [77, 9, "散步", "body"],
+      [78, 16, "学了一道新菜", "home"], [80, 14, "第一次去陶艺店看了看", "hand"], [81, 10, "早起", "body"],
+      [82, 22, "写了日记", "mind"], [84, 13, "晒了被子", "home"], [85, 18, "和朋友散步聊天", "people"],
+      [86, 10, "跑步", "body"], [88, 15, "画了速写", "hand"]
+    ];
+    return {
+      dumps: [
+        { id: 1, text: "那个对话的回放又来了。写下来，先不想。", t: n - 40 * 60000 },
+        { id: 2, text: "想再去陶艺店，这次报个四节的课", t: n - 3 * 3600000 },
+        { id: 3, text: "冰箱里的菠菜要吃掉", t: n - 5 * 3600000 },
+        { id: 4, text: "要不要把旧照片整理一下", t: n - DAY - 7200000 },
+        { id: 5, text: "研究一下指数基金再平衡（其实不急）", t: n - 4 * DAY },
+        { id: 6, text: "学日语？", t: n - 6 * DAY }
+      ],
+      one: { text: "去河边走一圈", day: dayKey(n) },
+      done: raw.map(function (r) { return { text: r[2], tag: r[3], t: t0 - r[0] * DAY + r[1] * 3600000 }; }),
+      next: 7
+    };
+  }
+
+  var s;
+  try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) { s = null; }
+  if (!s || !s.dumps) s = seed();
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var pickTag = null, showDays = 5, dropAnim = null;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  function icon(id) {
+    var svg = document.createElementNS(SVGNS, "svg"); svg.setAttribute("class", "i");
+    var use = document.createElementNS(SVGNS, "use"); use.setAttribute("href", "#" + id);
+    svg.appendChild(use); return svg;
+  }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function tagIcon(tag) {
+    var t = el("span", "tic"); var c = color(tag);
+    t.style.background = tint(c, .22); t.style.color = c;
+    t.appendChild(icon("t-" + (tag || "none"))); return t;
+  }
+  function relDay(t) {
+    var diff = Math.round((startOfToday() - new Date(t).setHours(0, 0, 0, 0)) / DAY);
+    if (diff <= 0) return "今天";
+    if (diff === 1) return "昨天";
+    var d = new Date(t), w = "日一二三四五六"[d.getDay()];
+    return (d.getMonth() + 1) + "月" + d.getDate() + "日 · 周" + w;
+  }
+
+  function addDone(text, tag) {
+    var before = s.done.length;
+    s.done.push({ text: text, tag: tag || null, t: Date.now() });
+    if (!reduce) dropAnim = { start: performance.now() };
+    if (Math.floor(s.done.length / 50) > Math.floor(before / 50)) s.milestone = s.done.length;
+  }
+
+  /* ---------- jar ---------- */
+  function rand(i) { var x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  function currentJar() {
+    var sorted = s.done.slice().sort(function (a, b) { return a.t - b.t; });
+    var full = Math.floor(sorted.length / CAP);
+    if (sorted.length && sorted.length % CAP === 0) full -= 1;
+    return { full: full, cur: sorted.slice(full * CAP) };
+  }
+  function drawJar() {
+    var c = $("jar-canvas"), dpr = window.devicePixelRatio || 1;
+    var W = c.clientWidth, H = c.clientHeight;
+    if (!W) return;
+    c.width = W * dpr; c.height = H * dpr;
+    var g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+
+    var info = currentJar(), cur = info.cur, full = info.full;
+    var jw = Math.min(W - 8, 210), jx = (W - jw) / 2, jy = 16, jh = H - 20, r = 26;
+    var neck = jw * 0.6, nx = (W - neck) / 2;
+    function jarPath() {
+      g.beginPath();
+      g.moveTo(nx, jy - 6); g.lineTo(nx, jy);
+      g.bezierCurveTo(nx, jy + 8, jx, jy + 4, jx, jy + 22);
+      g.lineTo(jx, jy + jh - r); g.quadraticCurveTo(jx, jy + jh, jx + r, jy + jh);
+      g.lineTo(jx + jw - r, jy + jh); g.quadraticCurveTo(jx + jw, jy + jh, jx + jw, jy + jh - r);
+      g.lineTo(jx + jw, jy + 22); g.bezierCurveTo(jx + jw, jy + 4, nx + neck, jy + 8, nx + neck, jy);
+      g.lineTo(nx + neck, jy - 6);
+    }
+    jarPath(); g.closePath(); g.fillStyle = css("--glass"); g.fill();
+
+    var pr = 8.5, cols = Math.floor((jw - 10) / (pr * 2)), rowH = pr * 1.72;
+    var now = performance.now(), animDone = true, hi = css("--hi");
+    g.save(); jarPath(); g.closePath(); g.clip();
+    cur.forEach(function (d, i) {
+      var row = Math.floor(i / cols), col = i % cols, off = row % 2 ? pr : 0;
+      var x = jx + 5 + pr + col * pr * 2 + off - (row % 2 && col === cols - 1 ? pr * 2 : 0);
+      x += (rand(i + full * CAP) - 0.5) * 2.2;
+      var y = jy + jh - pr - 3 - row * rowH + (rand(i * 3 + 7) - 0.5) * 1.6;
+      if (dropAnim && i === cur.length - 1) {
+        var p = Math.min(1, (now - dropAnim.start) / 560);
+        if (p < 1) animDone = false;
+        var ease = 1 - Math.pow(1 - p, 3);
+        y = (jy - 12) + (y - (jy - 12)) * ease;
+      }
+      var rx = pr * (0.9 + rand(i * 5) * 0.12), ry = pr * (0.78 + rand(i * 7) * 0.1), rot = rand(i * 11) * Math.PI;
+      g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); g.fillStyle = color(d.tag); g.fill();
+      g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.35, rx * 0.35, ry * 0.22, -0.4, 0, Math.PI * 2); g.fillStyle = hi; g.fill();
+    });
+    g.restore();
+    jarPath(); g.strokeStyle = css("--faint"); g.lineWidth = 1.25; g.stroke();
+    g.beginPath(); g.moveTo(nx - 4, jy - 6); g.lineTo(nx + neck + 4, jy - 6);
+    g.lineCap = "round"; g.lineWidth = 3; g.stroke();
+
+    if (!animDone) requestAnimationFrame(drawJar); else dropAnim = null;
+  }
+
+  function renderJar() {
+    var n = s.done.length;
+    var jt = $("jar-total"); jt.textContent = "";
+    jt.appendChild(document.createTextNode(n));
+    jt.appendChild(el("small", null, "件，慢慢攒的"));
+    var full = currentJar().full;
+    var jf = $("jar-full"); jf.textContent = ""; jf.hidden = full < 1;
+    for (var i = 0; i < Math.min(full, 6); i++) jf.appendChild(icon("i-jar"));
+    if (full) jf.appendChild(document.createTextNode("装满过 " + full + " 罐"));
+
+    var sh = $("shelf"); sh.textContent = "";
+    TAGS.forEach(function (t) {
+      var c = s.done.filter(function (d) { return d.tag === t.k; }).length;
+      var sp = el("span"); sp.appendChild(tagIcon(t.k)); sp.appendChild(el("b", null, c)); sp.appendChild(document.createTextNode(t.n));
+      sh.appendChild(sp);
+    });
+    var m = $("milestone"); m.textContent = "";
+    m.hidden = !s.milestone;
+    if (s.milestone) { m.appendChild(icon("i-sparkle")); m.appendChild(document.createTextNode("第 " + s.milestone + " 件了。")); }
+    drawJar();
+  }
+
+  /* ---------- dump / one ---------- */
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $("toast");
+    $("toast-text").textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 3600);
+  }
+  // Pick today's one thing. If one was already picked today, it goes back to the dump list instead of vanishing.
+  function setOne(text) {
+    var today = dayKey(Date.now());
+    var prev = s.one && s.one.day === today ? s.one.text : null;
+    if (prev) s.dumps.push({ id: s.next++, text: prev, t: Date.now() });
+    s.one = { text: text, day: today };
+    save();
+    toast(prev ? "今天就它了。「" + prev + "」放回念头里了" : "今天就它了");
+  }
+  function when(t) {
+    var mins = Math.round((Date.now() - t) / 60000);
+    if (mins < 60) return "刚才";
+    if (dayKey(t) === dayKey(Date.now())) return "今天";
+    return relDay(t);
+  }
+  function noteItem(d) {
+    var li = el("li", "note");
+    li.appendChild(el("p", null, d.text));
+    var meta = el("div", "meta"); meta.appendChild(el("span", "when", when(d.t)));
+    var acts = el("div", "acts");
+    [["i-check", "做了，放进罐子", function () { addDone(d.text, null); drop(d, li); }],
+     ["i-sun", "今天就它", function () { setOne(d.text); drop(d, li); }],
+     ["i-wind", "放下", function () { drop(d, li); }]].forEach(function (a) {
+      var b = el("button", "act"); b.setAttribute("aria-label", a[1]); b.title = a[1];
+      b.appendChild(icon(a[0])); b.addEventListener("click", a[2]); acts.appendChild(b);
+    });
+    meta.appendChild(acts); li.appendChild(meta);
+    return li;
+  }
+  function drop(d, li) {
+    li.classList.add("gone");
+    s.dumps = s.dumps.filter(function (x) { return x.id !== d.id; });
+    save(); setTimeout(render, reduce ? 0 : 350);
+  }
+
+  function render() {
+    var now = Date.now(), cutoff = now - 3 * DAY;
+    var fresh = s.dumps.filter(function (d) { return d.t >= cutoff; }).sort(function (a, b) { return b.t - a.t; });
+    var old = s.dumps.filter(function (d) { return d.t < cutoff; }).sort(function (a, b) { return b.t - a.t; });
+    var L = $("dump-list"); L.textContent = "";
+    if (!fresh.length) { var e = el("li", "empty"); e.appendChild(icon("i-leaf")); e.appendChild(document.createTextNode("这里现在是空的。")); L.appendChild(e); }
+    fresh.forEach(function (d) { L.appendChild(noteItem(d)); });
+    var O = $("older-list"); O.textContent = "";
+    old.forEach(function (d) { O.appendChild(noteItem(d)); });
+    $("older-wrap").hidden = !old.length;
+
+    if (s.one && s.one.day !== dayKey(now)) s.one = null;
+    $("one-badge").hidden = !s.one;
+    var box = $("one-box"); box.textContent = "";
+    if (s.one) {
+      var c = el("div", "one");
+      var lab = el("div", "label"); lab.appendChild(icon("i-sun")); lab.appendChild(document.createTextNode("今天想做的一件事"));
+      c.appendChild(lab);
+      c.appendChild(el("div", "what", s.one.text));
+      var a = el("div", "acts");
+      var ok = el("button", "btn"); ok.appendChild(icon("i-check")); ok.appendChild(document.createTextNode("做了，放进罐子"));
+      ok.addEventListener("click", function () { addDone(s.one.text, null); s.one = null; save(); render(); });
+      var no = el("button", "btn quiet"); no.appendChild(icon("i-wind")); no.appendChild(document.createTextNode("今天不做了"));
+      no.addEventListener("click", function () { s.one = null; save(); render(); });
+      a.appendChild(ok); a.appendChild(no); c.appendChild(a); box.appendChild(c);
+      box.appendChild(el("p", "hint sub-hint", "过了今天它会自己消失，不留记录。"));
+    } else {
+      var em = el("p", "empty"); em.appendChild(icon("i-leaf")); em.appendChild(document.createTextNode("今天没有选。这也完全可以。"));
+      box.appendChild(em);
+      var f = el("div", "composer");
+      var i = el("input"); i.type = "text"; i.id = "one-in"; i.placeholder = "想选一件的话，写在这里";
+      var gbtn = el("button", "send"); gbtn.setAttribute("aria-label", "就它"); gbtn.appendChild(icon("i-check"));
+      gbtn.addEventListener("click", function () { var v = i.value.trim(); if (!v) return; s.one = { text: v, day: dayKey(Date.now()) }; save(); render(); });
+      i.addEventListener("keydown", function (e) { if (e.key === "Enter") gbtn.click(); });
+      f.appendChild(i); f.appendChild(gbtn); box.appendChild(f);
+      box.appendChild(el("p", "hint sub-hint", "也可以从「倒出来」里点太阳图标挑一件。"));
+    }
+
+    var D = $("done-list"); D.textContent = "";
+    var groups = [], map = {};
+    s.done.slice().sort(function (a, b) { return b.t - a.t; }).forEach(function (d) {
+      var k = dayKey(d.t);
+      if (!map[k]) { map[k] = { t: d.t, items: [] }; groups.push(map[k]); }
+      map[k].items.push(d);
+    });
+    if (!groups.length) D.appendChild(el("p", "empty", "罐子还是空的。做了什么小事都可以放进来。"));
+    groups.slice(0, showDays).forEach(function (g) {
+      var sec = el("div", "day"); sec.appendChild(el("h3", null, relDay(g.t)));
+      var ul = el("ul");
+      g.items.forEach(function (d) { var li = el("li"); li.appendChild(tagIcon(d.tag)); li.appendChild(el("span", null, d.text)); ul.appendChild(li); });
+      sec.appendChild(ul); D.appendChild(sec);
+    });
+    $("more").hidden = groups.length <= showDays;
+
+    renderJar();
+    save();
+  }
+
+  /* ---------- tags ---------- */
+  var tagrow = $("tagrow");
+  function renderTags() {
+    tagrow.textContent = "";
+    TAGS.forEach(function (t) {
+      var b = el("button", "tagbtn"); b.type = "button"; b.setAttribute("aria-pressed", pickTag === t.k ? "true" : "false");
+      var ic = icon("t-" + t.k); ic.style.color = color(t.k);
+      b.appendChild(ic); b.appendChild(document.createTextNode(t.n));
+      b.addEventListener("click", function () { pickTag = pickTag === t.k ? null : t.k; renderTags(); });
+      tagrow.appendChild(b);
+    });
+  }
+
+  /* ---------- controls ---------- */
+  $("dump-go").addEventListener("click", function () {
+    var v = $("dump-in").value.trim(); if (!v) return;
+    s.dumps.push({ id: s.next++, text: v, t: Date.now() }); $("dump-in").value = ""; render();
+  });
+  $("dump-in").addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("dump-go").click(); });
+  $("done-go").addEventListener("click", function () {
+    var v = $("done-in").value.trim(); if (!v) return;
+    addDone(v, pickTag); $("done-in").value = ""; pickTag = null; renderTags(); render();
+  });
+  $("done-in").addEventListener("keydown", function (e) { if (e.key === "Enter") $("done-go").click(); });
+  $("more").addEventListener("click", function () { showDays += 7; render(); });
+  $("flip-go").addEventListener("click", function () {
+    if (!s.done.length) return;
+    var d = s.done[Math.floor(Math.random() * s.done.length)];
+    var p = $("flip-text"); p.textContent = "";
+    p.appendChild(el("em", null, relDay(d.t)));
+    p.appendChild(document.createTextNode(d.text));
+  });
+  $("reset").addEventListener("click", function () { s = seed(); showDays = 5; render(); });
+
+  function goTab(v) {
+    document.querySelectorAll(".bar button").forEach(function (x) { x.setAttribute("aria-selected", x.dataset.v === v ? "true" : "false"); });
+    ["dump", "one", "done"].forEach(function (k) { $("v-" + k).hidden = k !== v; });
+    if (v === "done") drawJar();
+  }
+  document.querySelectorAll(".bar button").forEach(function (b) {
+    b.addEventListener("click", function () { goTab(b.dataset.v); });
+  });
+  $("toast-go").addEventListener("click", function () { $("toast").classList.remove("show"); goTab("one"); });
+  window.addEventListener("resize", drawJar);
+  function retheme() { renderTags(); render(); }
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", retheme);
+  }
+  new MutationObserver(function (list) {
+    if (list.some(function (m) { return m.attributeName === "data-theme"; })) retheme();
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  var h = new Date().getHours();
+  $("greet").textContent = h < 5 ? "这么晚还在转？" : h < 11 ? "早上好" : h < 18 ? "下午好" : "晚上好";
+  renderTags(); render();
+})();
+</script>
+
+</body>
+</html>
