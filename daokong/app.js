@@ -660,7 +660,9 @@ import { askJSON, getApiKey, setApiKey, testKey } from "./ai.js";
     var hasKey = !!getApiKey();
     $("key-in").value = "";
     $("key-in").placeholder = hasKey ? "已保存（粘贴新的可以替换）" : "sk-ant-…";
-    $("key-status").textContent = hasKey ? "已保存 key。自动分类和挑「最有意思的一件」会用 Claude。" : "没有 key 时，用关键词来猜分类。";
+    var inClaude = !!(window.claude && window.claude.use);
+    $("key-status").textContent = inClaude ? "现在是在 Claude 里打开的，会直接用 Claude 分类，不用填 key。"
+      : hasKey ? "已保存 key。自动分类和挑「最有意思的一件」会用 Claude。" : "没有 key 时，用关键词来猜分类。";
     $("key-del").hidden = !hasKey; $("key-test").hidden = !hasKey;
     $("preview-cere").hidden = !currentJar().full;
     $("load-sample").hidden = !!(s.done.length || s.dumps.length);
