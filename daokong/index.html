@@ -152,10 +152,14 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 .flip p { margin: 0; min-width: 0; font-size: 14px; overflow-wrap: anywhere; line-height: 1.5; }
 .flip p em { font-style: normal; color: var(--muted); font-size: 12px; display: block; }
 
-.tagrow { display: flex; gap: 6px; margin: 10px 2px 0; flex-wrap: wrap; }
-.tagbtn { border: 0; background: none; color: var(--muted); font-size: 12px; padding: 4px 10px 4px 6px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 0 1px var(--line); }
-.tagbtn svg.i { width: 15px; height: 15px; }
-.tagbtn[aria-pressed="true"] { color: var(--fg); box-shadow: 0 0 0 1.5px var(--fg); }
+button.tic { border: 0; padding: 0; cursor: pointer; }
+button.tic:hover { filter: brightness(.95); }
+.tic.pending { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.day li.retag { display: flex; gap: 6px; flex-wrap: wrap; padding: 2px 0 10px 38px; }
+.retag button { border: 0; background: var(--sunk); border-radius: 999px; padding: 4px 10px 4px 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--muted); }
+.retag button[aria-pressed="true"] { color: var(--fg); box-shadow: 0 0 0 1.5px var(--fg); }
+.retag svg.i { width: 15px; height: 15px; }
 
 .day { margin-top: 20px; }
 .day h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 0 0 6px; letter-spacing: .06em; }
@@ -167,7 +171,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 .more svg.i { width: 16px; height: 16px; }
 
 .foot { font-size: 12px; color: var(--faint); text-align: center; }
-@media (prefers-reduced-motion: reduce) { .note, body, .bar .pill, .toast { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .note, body, .bar .pill, .toast { transition: none; } .tic.pending { animation: none; opacity: .5; } }
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -233,7 +237,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
         <input type="text" id="done-in" placeholder="刚做了什么？小事也算">
         <button class="send" id="done-go" aria-label="放进罐子"><svg class="i"><use href="#i-plus"/></svg></button>
       </div>
-      <div class="tagrow" id="tagrow"></div>
+      <p class="hint sub-hint">不用分类，会自动猜。猜错了点左边的图标改。</p>
       <div id="done-list"></div>
       <button class="more" id="more" hidden><svg class="i"><use href="#i-down"/></svg>看更早的</button>
     </div>
@@ -251,7 +255,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 
 <script>
 (function () {
-  var KEY = "daokong-demo-v2";
+  var KEY = "daokong-demo-v3";
   var DAY = 86400000, CAP = 60;
   var TAGS = [
     { k: "body", n: "身体" }, { k: "people", n: "人" }, { k: "hand", n: "手艺" },
@@ -305,8 +309,8 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
         { id: 6, text: "学日语？", t: n - 6 * DAY }
       ],
       one: { text: "去河边走一圈", day: dayKey(n), t: n },
-      done: raw.map(function (r) { return { text: r[2], tag: r[3], t: t0 - r[0] * DAY + r[1] * 3600000 }; }),
-      next: 7
+      done: raw.map(function (r, i) { return { id: 1000 + i, text: r[2], tag: r[3], t: Math.min(n - 60000, t0 - r[0] * DAY + r[1] * 3600000) }; }),
+      next: 2000
     };
   }
 
@@ -316,7 +320,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
   function save() { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
 
   var $ = function (id) { return document.getElementById(id); };
-  var pickTag = null, showDays = 5, dropAnim = null;
+  var editingId = null, showDays = 5, dropAnim = null;
   var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var SVGNS = "http://www.w3.org/2000/svg";
 
@@ -339,11 +343,58 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
     return (d.getMonth() + 1) + "月" + d.getDate() + "日 · 周" + w;
   }
 
-  function addDone(text, tag) {
+  function addDone(text) {
     var before = s.done.length;
-    s.done.push({ text: text, tag: tag || null, t: Date.now() });
+    var item = { id: s.next++, text: text, tag: null, auto: true, pending: true, t: Date.now() };
+    s.done.push(item);
     if (!reduce) dropAnim = { start: performance.now() };
     if (Math.floor(s.done.length / 50) > Math.floor(before / 50)) s.milestone = s.done.length;
+    classify(item.id, text);
+  }
+
+  /* ---------- auto tagging ---------- */
+  // Asks Claude through the page's `sample` capability; falls back to keywords when that isn't available.
+  var samplerP = null;
+  function sampler() {
+    if (!samplerP) samplerP = (window.claude && window.claude.use) ? window.claude.use("sample").catch(function () { return null; }) : Promise.resolve(null);
+    return samplerP;
+  }
+  var KEYWORDS = {
+    body: /走|跑|游泳|骑|爬山|瑜伽|拉伸|运动|健身|睡|早起|太阳|体检|医|药|散步/,
+    people: /妈|爸|姐|哥|弟|妹|朋友|家人|邻居|同事|电话|视频|聊|吃饭|见面|读书会|寄|回了消息/,
+    hand: /画|速写|水彩|陶|捏|缝|织|木|面包|吉他|琴|拼图|手工|做了一个/,
+    home: /整理|收拾|打扫|扫除|洗|床单|衣柜|冰箱|浇花|做饭|炒|汤|饺子|菜|晒被|修/,
+    mind: /读|书|写|日记|冥想|电影|展|图书馆|想法|学/
+  };
+  function guess(text) {
+    for (var k in KEYWORDS) if (KEYWORDS[k].test(text)) return k;
+    return null;
+  }
+  function classify(id, text) {
+    sampler().then(function (sample) {
+      if (!sample) return guess(text);
+      return sample.json(
+        "把一件已经做完的小事归到一个类别。只回 JSON：{\"tag\":\"<类别>\"}。\n" +
+        "类别：body（身体：运动、散步、睡眠、晒太阳、看病）、people（人：联系、见面、陪伴、帮忙）、" +
+        "hand（手艺：画画、手工、乐器、烘焙、学一门手上的技能）、home（家：家务、整理、做饭、采购、修东西）、" +
+        "mind（心：阅读、写作、冥想、看展看电影、独处）。都不合适就用 none。\n事情：" + text,
+        { modelTier: "quick" }
+      ).then(function (r) {
+        var t = r && r.tag;
+        return TAGS.some(function (x) { return x.k === t; }) ? t : null;
+      }, function () { return guess(text); });
+    }).then(function (tag) {
+      var item = s.done.find(function (d) { return d.id === id; });
+      if (!item || !item.pending) return; // removed, or changed by hand meanwhile
+      item.tag = tag; item.pending = false;
+      save(); render();
+    });
+  }
+  function retag(id, tag) {
+    var item = s.done.find(function (d) { return d.id === id; });
+    if (!item) return;
+    item.tag = tag; item.auto = false; item.pending = false;
+    editingId = null; save(); render();
   }
 
   /* ---------- jar ---------- */
@@ -542,26 +593,36 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
     groups.slice(0, showDays).forEach(function (g) {
       var sec = el("div", "day"); sec.appendChild(el("h3", null, relDay(g.t)));
       var ul = el("ul");
-      g.items.forEach(function (d) { var li = el("li"); li.appendChild(tagIcon(d.tag)); li.appendChild(el("span", null, d.text)); ul.appendChild(li); });
+      g.items.forEach(function (d) {
+        var li = el("li");
+        var tb = el("button", "tic"); var c = color(d.tag);
+        tb.style.background = tint(c, .22); tb.style.color = c;
+        tb.appendChild(icon("t-" + (d.tag || "none")));
+        if (d.pending) tb.classList.add("pending");
+        var name = (TAGS.find(function (x) { return x.k === d.tag; }) || { n: "未分类" }).n;
+        tb.setAttribute("aria-label", (d.pending ? "正在分类" : "分类：" + name) + "，点一下修改");
+        tb.title = d.pending ? "正在分类…" : name + (d.auto ? "（自动）" : "");
+        tb.setAttribute("aria-expanded", editingId === d.id ? "true" : "false");
+        tb.addEventListener("click", function () { editingId = editingId === d.id ? null : d.id; render(); });
+        li.appendChild(tb); li.appendChild(el("span", null, d.text)); ul.appendChild(li);
+        if (editingId === d.id) {
+          var row = el("li", "retag");
+          TAGS.concat([{ k: null, n: "不分类" }]).forEach(function (t) {
+            var b = el("button"); b.setAttribute("aria-pressed", d.tag === t.k ? "true" : "false");
+            var ic = icon("t-" + (t.k || "none")); ic.style.color = color(t.k);
+            b.appendChild(ic); b.appendChild(document.createTextNode(t.n));
+            b.addEventListener("click", function () { retag(d.id, t.k); });
+            row.appendChild(b);
+          });
+          ul.appendChild(row);
+        }
+      });
       sec.appendChild(ul); D.appendChild(sec);
     });
     $("more").hidden = groups.length <= showDays;
 
     renderJar();
     save();
-  }
-
-  /* ---------- tags ---------- */
-  var tagrow = $("tagrow");
-  function renderTags() {
-    tagrow.textContent = "";
-    TAGS.forEach(function (t) {
-      var b = el("button", "tagbtn"); b.type = "button"; b.setAttribute("aria-pressed", pickTag === t.k ? "true" : "false");
-      var ic = icon("t-" + t.k); ic.style.color = color(t.k);
-      b.appendChild(ic); b.appendChild(document.createTextNode(t.n));
-      b.addEventListener("click", function () { pickTag = pickTag === t.k ? null : t.k; renderTags(); });
-      tagrow.appendChild(b);
-    });
   }
 
   /* ---------- controls ---------- */
@@ -572,7 +633,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
   $("dump-in").addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("dump-go").click(); });
   $("done-go").addEventListener("click", function () {
     var v = $("done-in").value.trim(); if (!v) return;
-    addDone(v, pickTag); $("done-in").value = ""; pickTag = null; renderTags(); render();
+    addDone(v); $("done-in").value = ""; render();
   });
   $("done-in").addEventListener("keydown", function (e) { if (e.key === "Enter") $("done-go").click(); });
   $("more").addEventListener("click", function () { showDays += 7; render(); });
@@ -599,7 +660,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
     if (toastTab) goTab(toastTab);
   });
   window.addEventListener("resize", drawJar);
-  function retheme() { renderTags(); render(); }
+  function retheme() { render(); }
   if (window.matchMedia) {
     var mq = window.matchMedia("(prefers-color-scheme: dark)");
     if (mq.addEventListener) mq.addEventListener("change", retheme);
@@ -610,7 +671,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 
   var h = new Date().getHours();
   $("greet").textContent = h < 5 ? "这么晚还在转？" : h < 11 ? "早上好" : h < 18 ? "下午好" : "晚上好";
-  renderTags(); render();
+  render();
 })();
 </script>
 
