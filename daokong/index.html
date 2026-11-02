@@ -126,6 +126,8 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 .one .label svg.i { width: 16px; height: 16px; }
 .one .what { font-family: var(--display); font-size: 22px; font-weight: 500; margin: 10px 0 18px; overflow-wrap: anywhere; line-height: 1.45; }
 .one .acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.one.done { background: var(--sunk); }
+.one.done .what { color: var(--muted); }
 .btn { border: 0; background: var(--accent); color: var(--on-accent); font-size: 14px; padding: 9px 16px 9px 12px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .btn svg.i { width: 18px; height: 18px; stroke-width: 2; }
 .btn.quiet { background: transparent; color: var(--muted); }
@@ -244,7 +246,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
   </section>
 
   <p class="foot">示例数据，只存在这个浏览器里</p>
-  <div class="toast" id="toast" role="status" aria-live="polite"><svg class="i"><use href="#i-sun"/></svg><span id="toast-text"></span><button id="toast-go">去看看</button></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"><svg class="i"><use id="toast-icon" href="#i-sun"/></svg><span id="toast-text"></span><button id="toast-go">去看看</button></div>
 </div>
 
 <script>
@@ -302,7 +304,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
         { id: 5, text: "研究一下指数基金再平衡（其实不急）", t: n - 4 * DAY },
         { id: 6, text: "学日语？", t: n - 6 * DAY }
       ],
-      one: { text: "去河边走一圈", day: dayKey(n) },
+      one: { text: "去河边走一圈", day: dayKey(n), t: n },
       done: raw.map(function (r) { return { text: r[2], tag: r[3], t: t0 - r[0] * DAY + r[1] * 3600000 }; }),
       next: 7
     };
@@ -422,10 +424,14 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
   }
 
   /* ---------- dump / one ---------- */
-  var toastTimer = null;
-  function toast(msg) {
+  var toastTimer = null, toastTab = null;
+  // tab: which view "去看看" opens (null hides the button); ic: icon symbol id
+  function toast(msg, tab, ic) {
     var t = $("toast");
     $("toast-text").textContent = msg;
+    $("toast-icon").setAttribute("href", "#" + (ic || "i-sun"));
+    toastTab = tab || null;
+    $("toast-go").hidden = !toastTab;
     t.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.classList.remove("show"); }, 3600);
@@ -433,11 +439,11 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
   // Pick today's one thing. If one was already picked today, it goes back to the dump list instead of vanishing.
   function setOne(text) {
     var today = dayKey(Date.now());
-    var prev = s.one && s.one.day === today ? s.one.text : null;
+    var prev = s.one && s.one.day === today && !s.one.done ? s.one.text : null;
     if (prev) s.dumps.push({ id: s.next++, text: prev, t: Date.now() });
-    s.one = { text: text, day: today };
+    s.one = { text: text, day: today, t: Date.now() };
     save();
-    toast(prev ? "今天就它了。「" + prev + "」放回念头里了" : "今天就它了");
+    toast(prev ? "今天就它了。「" + prev + "」放回念头里了" : "今天就它了", "one", "i-sun");
   }
   function when(t) {
     var mins = Math.round((Date.now() - t) / 60000);
@@ -467,6 +473,11 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 
   function render() {
     var now = Date.now(), cutoff = now - 3 * DAY;
+    // Yesterday's pick that wasn't done goes back to the thoughts; a done one just clears.
+    if (s.one && s.one.day !== dayKey(now)) {
+      if (!s.one.done) s.dumps.push({ id: s.next++, text: s.one.text, t: s.one.t || now });
+      s.one = null;
+    }
     var fresh = s.dumps.filter(function (d) { return d.t >= cutoff; }).sort(function (a, b) { return b.t - a.t; });
     var old = s.dumps.filter(function (d) { return d.t < cutoff; }).sort(function (a, b) { return b.t - a.t; });
     var L = $("dump-list"); L.textContent = "";
@@ -476,28 +487,45 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
     old.forEach(function (d) { O.appendChild(noteItem(d)); });
     $("older-wrap").hidden = !old.length;
 
-    if (s.one && s.one.day !== dayKey(now)) s.one = null;
-    $("one-badge").hidden = !s.one;
+    $("one-badge").hidden = !s.one || !!s.one.done;
     var box = $("one-box"); box.textContent = "";
-    if (s.one) {
+    if (s.one && s.one.done) {
+      var cd = el("div", "one done");
+      var labd = el("div", "label"); labd.appendChild(icon("i-check")); labd.appendChild(document.createTextNode("今天这件做完了"));
+      cd.appendChild(labd);
+      cd.appendChild(el("div", "what", s.one.text));
+      var ad = el("div", "acts");
+      var again = el("button", "btn quiet"); again.appendChild(icon("i-plus")); again.appendChild(document.createTextNode("再选一件"));
+      again.addEventListener("click", function () { s.one = null; save(); render(); });
+      var see = el("button", "btn quiet"); see.appendChild(icon("i-jar")); see.appendChild(document.createTextNode("看看罐子"));
+      see.addEventListener("click", function () { goTab("done"); });
+      ad.appendChild(see); ad.appendChild(again); cd.appendChild(ad); box.appendChild(cd);
+      box.appendChild(el("p", "hint sub-hint", "已经放进罐子里了。今天到这里就很好。"));
+    } else if (s.one) {
       var c = el("div", "one");
       var lab = el("div", "label"); lab.appendChild(icon("i-sun")); lab.appendChild(document.createTextNode("今天想做的一件事"));
       c.appendChild(lab);
       c.appendChild(el("div", "what", s.one.text));
       var a = el("div", "acts");
       var ok = el("button", "btn"); ok.appendChild(icon("i-check")); ok.appendChild(document.createTextNode("做了，放进罐子"));
-      ok.addEventListener("click", function () { addDone(s.one.text, null); s.one = null; save(); render(); });
+      ok.addEventListener("click", function () {
+        addDone(s.one.text, null); s.one.done = true; save(); render();
+        toast("放进罐子了", "done", "i-jar");
+      });
       var no = el("button", "btn quiet"); no.appendChild(icon("i-wind")); no.appendChild(document.createTextNode("今天不做了"));
-      no.addEventListener("click", function () { s.one = null; save(); render(); });
+      no.addEventListener("click", function () {
+        s.dumps.push({ id: s.next++, text: s.one.text, t: Date.now() }); s.one = null; save(); render();
+        toast("放回念头里了，哪天想做再挑", "dump", "i-wind");
+      });
       a.appendChild(ok); a.appendChild(no); c.appendChild(a); box.appendChild(c);
-      box.appendChild(el("p", "hint sub-hint", "过了今天它会自己消失，不留记录。"));
+      box.appendChild(el("p", "hint sub-hint", "今天没做也没关系，明天它会回到念头里。"));
     } else {
       var em = el("p", "empty"); em.appendChild(icon("i-leaf")); em.appendChild(document.createTextNode("今天没有选。这也完全可以。"));
       box.appendChild(em);
       var f = el("div", "composer");
       var i = el("input"); i.type = "text"; i.id = "one-in"; i.placeholder = "想选一件的话，写在这里";
       var gbtn = el("button", "send"); gbtn.setAttribute("aria-label", "就它"); gbtn.appendChild(icon("i-check"));
-      gbtn.addEventListener("click", function () { var v = i.value.trim(); if (!v) return; s.one = { text: v, day: dayKey(Date.now()) }; save(); render(); });
+      gbtn.addEventListener("click", function () { var v = i.value.trim(); if (!v) return; setOne(v); render(); });
       i.addEventListener("keydown", function (e) { if (e.key === "Enter") gbtn.click(); });
       f.appendChild(i); f.appendChild(gbtn); box.appendChild(f);
       box.appendChild(el("p", "hint sub-hint", "也可以从「倒出来」里点太阳图标挑一件。"));
@@ -565,7 +593,11 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
   document.querySelectorAll(".bar button").forEach(function (b) {
     b.addEventListener("click", function () { goTab(b.dataset.v); });
   });
-  $("toast-go").addEventListener("click", function () { $("toast").classList.remove("show"); goTab("one"); });
+  $("toast-go").addEventListener("click", function () {
+    $("toast").classList.remove("show");
+    if (toastTab === "done" && !reduce) dropAnim = { start: performance.now() };
+    if (toastTab) goTab(toastTab);
+  });
   window.addEventListener("resize", drawJar);
   function retheme() { renderTags(); render(); }
   if (window.matchMedia) {
