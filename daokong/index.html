@@ -137,7 +137,7 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 /* jar */
 .jar { background: var(--sunk); border-radius: 24px; padding: 16px 16px 14px; margin-bottom: 16px; }
 .jar-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.jar-total { font-family: var(--display); font-size: 30px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.jar-total { font-family: var(--display); font-size: 21px; font-weight: 500; line-height: 1.3; padding-top: 4px; font-variant-numeric: tabular-nums; }
 .jar-total small { font-family: var(--body); font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 6px; }
 .jar-full { border: 0; background: var(--surface); border-radius: 999px; cursor: pointer; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; padding: 5px 8px 5px 10px; margin-top: 2px; }
 .jar-full:hover { color: var(--fg); }
@@ -153,6 +153,30 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 .sheet-head h2 { flex: 1; margin: 0; font-family: var(--display); font-weight: 500; font-size: 19px; letter-spacing: .04em; }
 .sheet-body { overflow-y: auto; padding: 4px max(20px, env(safe-area-inset-right, 0px)) 28px max(20px, env(safe-area-inset-left, 0px)); }
 .sheet .lead { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
+.stats { background: var(--sunk); border-radius: 20px; padding: 14px 10px 12px; margin: 4px 0 20px; }
+.stats-total { font-family: var(--display); font-size: 26px; font-weight: 500; line-height: 1.2; margin: 0 0 12px 8px; font-variant-numeric: tabular-nums; }
+.stats-total small { font-family: var(--body); font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.jar-detail .stats { margin-top: 12px; }
+
+/* jar-full moment */
+.cere-scrim { position: fixed; inset: 0; z-index: 40; background: rgba(12, 18, 28, .5); animation: fade .3s ease-out; }
+.cere { position: fixed; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(380px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow-y: auto; box-sizing: border-box; background: var(--surface); border-radius: 28px; padding: 20px 22px 22px; text-align: center; box-shadow: var(--shadow); animation: pop .4s cubic-bezier(.2, .8, .2, 1); }
+@keyframes pop { from { transform: translate(-50%, -46%) scale(.96); opacity: 0; } }
+#cere-jar { width: 100%; height: 170px; display: block; }
+.cere h2 { font-family: var(--display); font-weight: 600; font-size: 24px; letter-spacing: .06em; margin: 8px 0 2px; }
+.cere-sub { margin: 0; font-size: 13px; color: var(--muted); }
+.cere-h { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .08em; margin: 22px 0 8px; text-align: left; }
+.cere .stats { margin: 0; }
+.pick { background: var(--accent-soft); border-radius: 18px; padding: 14px 16px; text-align: left; }
+.pick.loading { color: var(--muted); font-size: 14px; animation: pulse 1.4s ease-in-out infinite; }
+.pick-top { display: flex; gap: 10px; align-items: center; }
+.pick-top .tic { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.pick-top .tic svg.i { width: 16px; height: 16px; }
+.pick-what { font-family: var(--display); font-size: 18px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.pick-when { margin: 6px 0 0 40px; font-size: 12px; color: var(--muted); }
+.pick-why { margin: 4px 0 0 40px; font-size: 14px; color: var(--fg); line-height: 1.55; }
+.cere-acts { display: flex; justify-content: center; gap: 8px; margin-top: 22px; flex-wrap: wrap; }
+.foot button { border: 0; background: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 4px 2px; }
 
 .shelf-grid { display: flex; flex-direction: column; gap: 22px; }
 .shelf-row { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -200,7 +224,7 @@ button.tic:hover { filter: brightness(.95); }
 .more svg.i { width: 16px; height: 16px; }
 
 .foot { font-size: 12px; color: var(--faint); text-align: center; }
-@media (prefers-reduced-motion: reduce) { .note, body, .bar .pill, .toast { transition: none; } .sheet, .sheet-scrim { animation: none; } .tic.pending { animation: none; opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .note, body, .bar .pill, .toast { transition: none; } .sheet, .sheet-scrim, .cere, .cere-scrim, .pick.loading { animation: none; } .tic.pending { animation: none; opacity: .5; } }
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -281,7 +305,21 @@ button.tic:hover { filter: brightness(.95); }
     </nav>
   </section>
 
-  <p class="foot">示例数据，只存在这个浏览器里</p>
+  <p class="foot">示例数据，只存在这个浏览器里 · <button id="preview-cere">预览装满一罐的样子</button></p>
+  <div class="cere-scrim" id="cere-scrim" hidden></div>
+  <section class="cere" id="cere" hidden role="dialog" aria-modal="true" aria-labelledby="cere-title">
+    <canvas id="cere-jar" aria-hidden="true"></canvas>
+    <h2 id="cere-title"></h2>
+    <p class="cere-sub" id="cere-sub"></p>
+    <h3 class="cere-h">往不同方向，各走了多少</h3>
+    <div id="cere-stats"></div>
+    <h3 class="cere-h">这一罐里最有意思的一件</h3>
+    <div class="pick" id="cere-pick"></div>
+    <div class="cere-acts">
+      <button class="btn" id="cere-done"><svg class="i"><use href="#i-check"/></svg>放上罐子架</button>
+      <button class="btn quiet" id="cere-shelf">看看罐子架</button>
+    </div>
+  </section>
   <div class="sheet-scrim" id="sheet-scrim" hidden></div>
   <section class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
     <div class="grip"></div>
@@ -392,6 +430,10 @@ button.tic:hover { filter: brightness(.95); }
     if (!reduce) dropAnim = { start: performance.now() };
     if (Math.floor(s.done.length / 50) > Math.floor(before / 50)) s.milestone = s.done.length;
     classify(item.id, text);
+    if (s.done.length % CAP === 0) {
+      var n = s.done.length / CAP - 1;
+      setTimeout(function () { celebrate(n); }, reduce ? 0 : 900); // let the last pebble land first
+    }
   }
 
   /* ---------- auto tagging ---------- */
@@ -444,7 +486,6 @@ button.tic:hover { filter: brightness(.95); }
   function currentJar() {
     var sorted = s.done.slice().sort(function (a, b) { return a.t - b.t; });
     var full = Math.floor(sorted.length / CAP);
-    if (sorted.length && sorted.length % CAP === 0) full -= 1;
     return { full: full, cur: sorted.slice(full * CAP) };
   }
   function chunks() {
@@ -458,7 +499,7 @@ button.tic:hover { filter: brightness(.95); }
     if (finished === false) requestAnimationFrame(drawJar); else dropAnim = null;
   }
   // Paints one jar of pebbles on a canvas; returns false while the drop animation is still running.
-  function paintJar(c, cur, full, animate, sealed) {
+  function paintJar(c, cur, full, animate, sealed, lidP) {
     var dpr = window.devicePixelRatio || 1;
     var W = c.clientWidth, H = c.clientHeight;
     if (!W) return true;
@@ -501,13 +542,81 @@ button.tic:hover { filter: brightness(.95); }
     jarPath(); g.strokeStyle = css("--faint"); g.lineWidth = 1.25; g.stroke();
     g.beginPath(); g.moveTo(nx - 4, jy - 6); g.lineTo(nx + neck + 4, jy - 6);
     g.lineCap = "round"; g.lineWidth = 3; g.stroke();
-    if (sealed) { // a lid on top
+    if (sealed) { // a lid on top; lidP (0..1) lowers it into place
+      var e = lidP == null ? 1 : 1 - Math.pow(1 - lidP, 3), ly = jy - 14 - (1 - e) * 28;
+      g.globalAlpha = e;
       g.beginPath();
-      if (g.roundRect) g.roundRect(nx - 5, jy - 14, neck + 10, 10, 4); else g.rect(nx - 5, jy - 14, neck + 10, 10);
+      if (g.roundRect) g.roundRect(nx - 5, ly, neck + 10, 10, 4); else g.rect(nx - 5, ly, neck + 10, 10);
       g.fillStyle = tint(css("--accent"), .5); g.fill();
+      g.globalAlpha = 1;
     }
 
     return animDone;
+  }
+
+  /* ---------- jar-full moment ---------- */
+  function dayStart(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  function celebrate(i) {
+    var jar = chunks()[i];
+    if (!jar || jar.length < CAP) return;
+    var first = jar[0].t, last = jar[jar.length - 1].t;
+    var days = Math.round((dayStart(last) - dayStart(first)) / DAY) + 1;
+    $("cere-title").textContent = "第 " + (i + 1) + " 罐装满了";
+    $("cere-sub").textContent = cnDate(first) + " – " + cnDate(last) + "，" + days + " 天里攒下的 " + jar.length + " 件事";
+    var st = $("cere-stats"); st.textContent = "";
+    var w = el("div", "stats"); w.appendChild(statsRow(jar, true)); st.appendChild(w);
+    $("cere").hidden = false; $("cere-scrim").hidden = false;
+    var start = performance.now();
+    (function frame() {
+      var p = reduce ? 1 : Math.max(0, Math.min(1, (performance.now() - start - 300) / 700));
+      paintJar($("cere-jar"), jar, i * CAP, false, true, p);
+      if (p < 1 && !$("cere").hidden) requestAnimationFrame(frame);
+    })();
+    renderPick(i, jar);
+    $("cere-done").focus();
+  }
+  function closeCere() { $("cere").hidden = true; $("cere-scrim").hidden = true; render(); }
+  function showPick(box, jar, note) {
+    var item = jar.find(function (d) { return d.id === note.id; }) || jar[0];
+    box.className = "pick"; box.textContent = "";
+    var top = el("div", "pick-top"); top.appendChild(tagIcon(item.tag));
+    top.appendChild(el("span", "pick-what", item.text)); box.appendChild(top);
+    box.appendChild(el("p", "pick-when", cnDate(item.t)));
+    if (note.why) box.appendChild(el("p", "pick-why", note.why));
+  }
+  function renderPick(i, jar) {
+    var box = $("cere-pick"), note = s.jarNotes && s.jarNotes[i];
+    if (note) { showPick(box, jar, note); return; }
+    box.className = "pick loading"; box.textContent = "正在翻这一罐…";
+    pickInteresting(jar).then(function (n) {
+      s.jarNotes = s.jarNotes || {}; s.jarNotes[i] = n; save();
+      showPick(box, jar, n);
+    });
+  }
+  // Claude picks the most interesting item; without it, prefer "first time / finally worked" moments.
+  function fallbackPick(jar) {
+    var hit = jar.filter(function (d) { return /第一次|第二次|成了|学会|终于/.test(d.text); });
+    if (hit.length) return { id: hit[hit.length - 1].id, why: "以前没做过，或者试了不止一次的事。" };
+    var counts = {};
+    jar.forEach(function (d) { counts[d.tag] = (counts[d.tag] || 0) + 1; });
+    var rare = jar.slice().sort(function (a, b) { return (counts[a.tag] - counts[b.tag]) || (b.text.length - a.text.length); })[0];
+    return { id: rare.id, why: "这一罐里不太常出现的一类事。" };
+  }
+  function pickInteresting(jar) {
+    return sampler().then(function (sample) {
+      if (!sample) return fallbackPick(jar);
+      var lines = jar.map(function (d, k) { return k + ". " + md(d.t) + " " + d.text; }).join("\n");
+      return sample.json(
+        "下面是一个人在一段时间里做过的 " + jar.length + " 件小事，按时间排列，每行“编号. 日期 事情”。\n" +
+        "挑出最有意思的一件：比如第一次尝试、失败后又试一次、意外或温暖的时刻。不要挑最有成就感的，也不要评价其他事。\n" +
+        "只回 JSON：{\"index\": 编号, \"why\": \"一句话说为什么，温和具体，不超过 30 个字，不用感叹号，用“你”称呼\"}\n\n" + lines,
+        { modelTier: "default" }
+      ).then(function (r) {
+        var k = r && Number(r.index);
+        if (!(k >= 0 && k < jar.length)) return fallbackPick(jar);
+        return { id: jar[k].id, why: String(r.why || "").slice(0, 60) };
+      }, function () { return fallbackPick(jar); });
+    });
   }
 
   /* ---------- sealed jars ---------- */
@@ -524,13 +633,28 @@ button.tic:hover { filter: brightness(.95); }
     $("sheet").hidden = true; $("sheet-scrim").hidden = true;
     $("jar-full").focus();
   }
+  // One row of the five categories; with counts=true each shows how many of `items` it holds.
+  function statsRow(items, counts) {
+    var sh = el("div", "shelf");
+    TAGS.forEach(function (t) {
+      var sp = el("span"); sp.appendChild(tagIcon(t.k));
+      if (counts) sp.appendChild(el("b", null, items.filter(function (d) { return d.tag === t.k; }).length));
+      sp.appendChild(document.createTextNode(t.n)); sh.appendChild(sp);
+    });
+    return sh;
+  }
   function renderSheet() {
     var body = $("sheet-body"), full = currentJar().full, all = chunks(), paint = [];
     body.textContent = ""; body.scrollTop = 0;
     $("sheet-back").hidden = sheetJar == null;
     if (sheetJar == null) {
-      $("sheet-title").textContent = "封存的罐子";
-      body.appendChild(el("p", "lead", "每罐 60 件，满了就盖上盖子放到这里。"));
+      $("sheet-title").textContent = "罐子架";
+      var stats = el("div", "stats");
+      var tot = el("p", "stats-total"); tot.appendChild(document.createTextNode(s.done.length));
+      tot.appendChild(el("small", null, "件，到现在一共攒下的")); stats.appendChild(tot);
+      stats.appendChild(statsRow(s.done, true));
+      body.appendChild(stats);
+      body.appendChild(el("p", "lead", full ? "每罐 60 件，满了就盖上盖子放到这里。" : "还没有装满的罐子。满 60 件会盖上盖子放到这里。"));
       var grid = el("div", "shelf-grid");
       for (var i = 0; i < full; i++) (function (i) {
         var jar = all[i];
@@ -550,6 +674,12 @@ button.tic:hover { filter: brightness(.95); }
       var wrap = el("div", "jar-detail");
       var cv = el("canvas"); wrap.appendChild(cv); paint.push([cv, jar, sheetJar, 1]);
       wrap.appendChild(el("p", "meta", cnDate(jar[0].t) + " – " + cnDate(jar[jar.length - 1].t) + " · " + jar.length + " 件"));
+      var js = el("div", "stats"); js.appendChild(statsRow(jar, true)); wrap.appendChild(js);
+      var note = s.jarNotes && s.jarNotes[sheetJar];
+      if (note) {
+        wrap.appendChild(el("h3", "cere-h", "这一罐里最有意思的一件"));
+        var pk = el("div"); showPick(pk, jar, note); wrap.appendChild(pk);
+      }
       body.appendChild(wrap);
       var months = [], byKey = {};
       jar.slice().reverse().forEach(function (d) {
@@ -571,21 +701,17 @@ button.tic:hover { filter: brightness(.95); }
   }
 
   function renderJar() {
-    var n = s.done.length;
-    var jt = $("jar-total"); jt.textContent = "";
-    jt.appendChild(document.createTextNode(n));
-    jt.appendChild(el("small", null, "件，慢慢攒的"));
+    // Main view shows no counts: the pebble colors carry the picture, numbers live in the jar shelf sheet.
     var full = currentJar().full;
-    var jf = $("jar-full"); jf.textContent = ""; jf.hidden = full < 1;
+    var jt = $("jar-total"); jt.textContent = "";
+    jt.appendChild(document.createTextNode("第 " + (full + 1) + " 罐"));
+    jt.appendChild(el("small", null, "正在攒"));
+    var jf = $("jar-full"); jf.textContent = ""; jf.hidden = false;
     for (var i = 0; i < Math.min(full, 6); i++) jf.appendChild(icon("i-jar"));
-    if (full) { jf.appendChild(document.createTextNode("装满过 " + full + " 罐")); jf.appendChild(icon("i-right")); }
+    jf.appendChild(document.createTextNode(full ? "装满过 " + full + " 罐" : "罐子架"));
+    jf.appendChild(icon("i-right"));
 
-    var sh = $("shelf"); sh.textContent = "";
-    TAGS.forEach(function (t) {
-      var c = s.done.filter(function (d) { return d.tag === t.k; }).length;
-      var sp = el("span"); sp.appendChild(tagIcon(t.k)); sp.appendChild(el("b", null, c)); sp.appendChild(document.createTextNode(t.n));
-      sh.appendChild(sp);
-    });
+    var sh = $("shelf"); sh.replaceWith(statsRow(s.done, false)); sh = document.querySelector(".jar .shelf"); sh.id = "shelf";
     var m = $("milestone"); m.textContent = "";
     m.hidden = !s.milestone;
     if (s.milestone) { m.appendChild(icon("i-sparkle")); m.appendChild(document.createTextNode("第 " + s.milestone + " 件了。")); }
@@ -760,7 +886,13 @@ button.tic:hover { filter: brightness(.95); }
   $("sheet-close").addEventListener("click", closeSheet);
   $("sheet-scrim").addEventListener("click", closeSheet);
   $("sheet-back").addEventListener("click", function () { sheetJar = null; renderSheet(); $("sheet-close").focus(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("sheet").hidden) closeSheet(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (!$("cere").hidden) closeCere(); else if (!$("sheet").hidden) closeSheet();
+  });
+  $("cere-done").addEventListener("click", closeCere);
+  $("cere-shelf").addEventListener("click", function () { closeCere(); openSheet(); });
+  $("preview-cere").addEventListener("click", function () { if (currentJar().full) celebrate(0); });
   $("flip-go").addEventListener("click", function () {
     if (!s.done.length) return;
     var d = s.done[Math.floor(Math.random() * s.done.length)];
