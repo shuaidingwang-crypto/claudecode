@@ -154,10 +154,11 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 .sheet-body { overflow-y: auto; padding: 4px max(20px, env(safe-area-inset-right, 0px)) 28px max(20px, env(safe-area-inset-left, 0px)); }
 .sheet .lead { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
 
-.shelf-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 22px; align-items: start; }
+.shelf-grid { display: flex; flex-direction: column; gap: 22px; }
+.shelf-row { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.shelf-row::after { content: ""; position: absolute; left: 0; right: 0; top: 118px; height: 3px; border-radius: 2px; background: var(--line); }
 .slot { border: 0; background: none; cursor: pointer; padding: 0; display: flex; flex-direction: column; align-items: center; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; border-radius: 12px; }
-.slot canvas, .slot .plank { width: 100%; height: 118px; display: block; border-bottom: 3px solid var(--line); }
-.slot.empty { cursor: default; }
+.slot canvas { width: 100%; height: 118px; display: block; margin-bottom: 3px; }
 .slot b { font-family: var(--display); font-weight: 500; font-size: 14px; color: var(--fg); margin-top: 10px; }
 .slot:hover canvas { transform: translateY(-2px); transition: transform .2s; }
 
@@ -539,10 +540,9 @@ button.tic:hover { filter: brightness(.95); }
         b.appendChild(el("b", null, "第 " + (i + 1) + " 罐"));
         b.appendChild(el("span", null, md(jar[0].t) + " – " + md(jar[jar.length - 1].t)));
         b.addEventListener("click", function () { sheetJar = i; renderSheet(); });
-        grid.appendChild(b);
+        if (i % 3 === 0) grid.appendChild(el("div", "shelf-row")); // one plank per row of three
+        grid.lastChild.appendChild(b);
       })(i);
-      // fill the last row with empty shelf so the plank runs the full width
-      for (var e = full; e % 3 !== 0; e++) { var sl = el("div", "slot empty"); sl.setAttribute("aria-hidden", "true"); sl.appendChild(el("div", "plank")); grid.appendChild(sl); }
       body.appendChild(grid);
     } else {
       var jar = all[sheetJar];
