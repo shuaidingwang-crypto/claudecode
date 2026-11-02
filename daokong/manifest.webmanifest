@@ -1,0 +1,16 @@
+{
+  "name": "倒空",
+  "short_name": "倒空",
+  "description": "把脑子里转的念头倒出来，把做过的小事攒进罐子。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#E6EBF0",
+  "theme_color": "#E6EBF0",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
