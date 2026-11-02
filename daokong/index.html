@@ -106,9 +106,13 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 .notes-list { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-direction: column; gap: 8px; }
 .note { background: var(--sunk); border-radius: 18px; padding: 12px 10px 8px 14px; transition: opacity .35s, transform .35s; }
 .note p { margin: 0 4px 0 0; overflow-wrap: anywhere; }
-.note .meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 4px; }
-.note .when { font-size: 12px; color: var(--faint); }
-.note .acts { display: flex; gap: 2px; }
+.note .meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.note .when { font-size: 12px; color: var(--faint); margin-right: 4px; }
+.note .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip-act { border: 0; background: var(--surface); color: var(--muted); height: 30px; padding: 0 11px 0 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; }
+.chip-act svg.i { width: 16px; height: 16px; }
+.chip-act:hover { color: var(--accent); }
+.chip-act.drop:hover { color: var(--fg); }
 .act { border: 0; background: none; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; color: var(--muted); }
 .act:hover { background: var(--surface); color: var(--accent); }
 .act svg.i { width: 19px; height: 19px; }
@@ -126,7 +130,12 @@ svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor;
 .one .label { font-size: 12px; color: var(--accent); letter-spacing: .1em; display: flex; align-items: center; gap: 6px; }
 .one .label svg.i { width: 16px; height: 16px; }
 .one .what { font-family: var(--display); font-size: 22px; font-weight: 500; margin: 10px 0 18px; overflow-wrap: anywhere; line-height: 1.45; }
-.one .acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.one .acts { display: flex; gap: 6px 10px; align-items: center; flex-wrap: wrap; }
+.one .acts .btn:not(.quiet) { flex-basis: 100%; justify-content: center; padding-block: 11px; }
+.legend { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 12px; margin: 16px 4px 0; font-size: 13px; }
+.legend dt { display: flex; align-items: center; gap: 6px; color: var(--fg); }
+.legend dt svg.i { width: 16px; height: 16px; color: var(--muted); }
+.legend dd { margin: 0; color: var(--muted); }
 .one.done { background: var(--sunk); }
 .one.done .what { color: var(--muted); }
 .btn { border: 0; background: var(--accent); color: var(--on-accent); font-size: 14px; padding: 9px 16px 9px 12px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
@@ -238,6 +247,8 @@ button.tic:hover { filter: brightness(.95); }
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3c4 0 6 10 10 10h5"/><path d="M3 17h3c1.6 0 2.8-1.6 4-3.5M14 9.5C15 8 16.2 7 18 7h3"/><path d="M18 4l3 3-3 3M18 14l3 3-3 3"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6 7l1 12.5a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5L18 7"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
     <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
     <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
@@ -263,7 +274,7 @@ button.tic:hover { filter: brightness(.95); }
     </header>
 
     <div class="view" id="v-dump" hidden>
-      <p class="view-title"><svg class="i"><use href="#i-pen"/></svg>脑子里在转的，先放这里</p>
+      <p class="view-title"><svg class="i"><use href="#i-pen"/></svg>脑子里在转的，先放这里。写下来就可以不管它</p>
       <div class="composer">
         <textarea id="dump-in" placeholder="写下来就好，不用分类"></textarea>
         <button class="send" id="dump-go" aria-label="倒出来"><svg class="i"><use href="#i-up"/></svg></button>
@@ -750,15 +761,16 @@ button.tic:hover { filter: brightness(.95); }
   function noteItem(d) {
     var li = el("li", "note");
     li.appendChild(el("p", null, d.text));
-    var meta = el("div", "meta"); meta.appendChild(el("span", "when", when(d.t)));
+    var meta = el("div", "meta");
     var acts = el("div", "acts");
-    [["i-check", "做了，放进罐子", function () { addDone(d.text, null); drop(d, li); }],
-     ["i-sun", "今天就它", function () { setOne(d.text); drop(d, li); }],
-     ["i-wind", "放下", function () { drop(d, li); }]].forEach(function (a) {
-      var b = el("button", "act"); b.setAttribute("aria-label", a[1]); b.title = a[1];
-      b.appendChild(icon(a[0])); b.addEventListener("click", a[2]); acts.appendChild(b);
+    [["i-check", "做了", "做了，放进罐子", "", function () { addDone(d.text); drop(d, li); toast("放进罐子了", "done", "i-jar"); }],
+     ["i-sun", "今天做", "今天就做这件", "", function () { setOne(d.text); drop(d, li); }],
+     ["i-trash", "放下", "放下，彻底不要了", " drop", function () { drop(d, li); toast("放下了，不留记录", null, "i-trash"); }]].forEach(function (a) {
+      var b = el("button", "chip-act" + a[3]); b.setAttribute("aria-label", a[2]); b.title = a[2];
+      b.appendChild(icon(a[0])); b.appendChild(document.createTextNode(a[1]));
+      b.addEventListener("click", a[4]); acts.appendChild(b);
     });
-    meta.appendChild(acts); li.appendChild(meta);
+    meta.appendChild(acts); meta.appendChild(el("span", "when", when(d.t))); li.appendChild(meta);
     return li;
   }
   function drop(d, li) {
@@ -808,16 +820,21 @@ button.tic:hover { filter: brightness(.95); }
         addDone(s.one.text, null); s.one.done = true; save(); render();
         toast("放进罐子了", "done", "i-jar");
       });
-      var no = el("button", "btn quiet"); no.appendChild(icon("i-left")); no.appendChild(document.createTextNode("今天不做了"));
+      var no = el("button", "btn quiet"); no.appendChild(icon("i-undo")); no.appendChild(document.createTextNode("今天不做了"));
       no.addEventListener("click", function () {
         s.dumps.push({ id: s.next++, text: s.one.text, t: Date.now() }); s.one = null; save(); render();
-        toast("放回念头里了，哪天想做再挑", "dump", "i-left");
+        toast("放回念头里了，改天再挑", "dump", "i-undo");
       });
       // 放下: gone for good, same as 放下 on a thought; no record anywhere
-      var away = el("button", "btn quiet"); away.appendChild(icon("i-wind")); away.appendChild(document.createTextNode("放下"));
-      away.addEventListener("click", function () { s.one = null; save(); render(); toast("放下了", null, "i-wind"); });
+      var away = el("button", "btn quiet"); away.appendChild(icon("i-trash")); away.appendChild(document.createTextNode("放下"));
+      away.addEventListener("click", function () { s.one = null; save(); render(); toast("放下了，不留记录", null, "i-trash"); });
       a.appendChild(ok); a.appendChild(no); a.appendChild(away); c.appendChild(a); box.appendChild(c);
-      box.appendChild(el("p", "hint sub-hint", "「今天不做了」会放回念头里；「放下」就彻底不要了。都不点的话，明天它会回到念头里。"));
+      var legend = el("dl", "legend");
+      [["i-undo", "今天不做了", "放回「倒出来」，改天再挑。"], ["i-trash", "放下", "彻底不要了，不留记录。"], ["i-sun", "都不点", "明天它会自己回到「倒出来」。"]].forEach(function (r) {
+        var dt = el("dt"); dt.appendChild(icon(r[0])); dt.appendChild(document.createTextNode(r[1]));
+        legend.appendChild(dt); legend.appendChild(el("dd", null, r[2]));
+      });
+      box.appendChild(legend);
     } else {
       var em = el("p", "empty"); em.appendChild(icon("i-leaf")); em.appendChild(document.createTextNode("今天没有选。这也完全可以。"));
       box.appendChild(em);
