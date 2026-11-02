@@ -808,13 +808,16 @@ button.tic:hover { filter: brightness(.95); }
         addDone(s.one.text, null); s.one.done = true; save(); render();
         toast("放进罐子了", "done", "i-jar");
       });
-      var no = el("button", "btn quiet"); no.appendChild(icon("i-wind")); no.appendChild(document.createTextNode("今天不做了"));
+      var no = el("button", "btn quiet"); no.appendChild(icon("i-left")); no.appendChild(document.createTextNode("今天不做了"));
       no.addEventListener("click", function () {
         s.dumps.push({ id: s.next++, text: s.one.text, t: Date.now() }); s.one = null; save(); render();
-        toast("放回念头里了，哪天想做再挑", "dump", "i-wind");
+        toast("放回念头里了，哪天想做再挑", "dump", "i-left");
       });
-      a.appendChild(ok); a.appendChild(no); c.appendChild(a); box.appendChild(c);
-      box.appendChild(el("p", "hint sub-hint", "今天没做也没关系，明天它会回到念头里。"));
+      // 放下: gone for good, same as 放下 on a thought; no record anywhere
+      var away = el("button", "btn quiet"); away.appendChild(icon("i-wind")); away.appendChild(document.createTextNode("放下"));
+      away.addEventListener("click", function () { s.one = null; save(); render(); toast("放下了", null, "i-wind"); });
+      a.appendChild(ok); a.appendChild(no); a.appendChild(away); c.appendChild(a); box.appendChild(c);
+      box.appendChild(el("p", "hint sub-hint", "「今天不做了」会放回念头里；「放下」就彻底不要了。都不点的话，明天它会回到念头里。"));
     } else {
       var em = el("p", "empty"); em.appendChild(icon("i-leaf")); em.appendChild(document.createTextNode("今天没有选。这也完全可以。"));
       box.appendChild(em);
