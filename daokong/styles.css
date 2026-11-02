@@ -2,9 +2,8 @@
 :root {
   --bg: #E6EBF0; --surface: #F8FAFC; --sunk: #EDF1F5; --fg: #1F2733; --muted: #6A7687; --faint: #A9B3C0;
   --line: #DDE3EA; --accent: #3F5A8C; --accent-soft: #E1E8F3; --on-accent: #F8FAFC;
-  --glass: rgba(255, 255, 255, .42); --hi: rgba(255, 255, 255, .28);
-  --glass-edge: rgba(120, 145, 180, .2); --glass-line: rgba(95, 118, 150, .5); --shine: rgba(255, 255, 255, .6); --ground: rgba(30, 45, 70, .22);
-  --t-body: #8FB08A; --t-people: #D59A8C; --t-hand: #86A6C9; --t-home: #D9B56E; --t-mind: #A99BC9; --t-none: #C3C9D0;
+  --jar-on-sunk: #F8F9FA; --jar-on-surface: #EDF0F4; --jar-lip: #D9DFE5; --lid: #B4C0D2; --hi: rgba(255, 255, 255, .28);
+  --t-body: #A3B394; --t-people: #D2A595; --t-hand: #98ABBF; --t-home: #D6BD8C; --t-mind: #B3A6BD; --t-none: #C3C9D0;
   --shadow: 0 1px 2px rgba(20, 30, 50, .04), 0 18px 40px -18px rgba(20, 30, 50, .18);
   --danger: #B4452F;
   --display: "Noto Serif SC", "Songti SC", serif;
@@ -15,9 +14,8 @@
   :root:not([data-theme="light"]) {
     --bg: #11161D; --surface: #19202A; --sunk: #222B37; --fg: #E3E9F0; --muted: #8E9AAA; --faint: #566273;
     --line: #2A3442; --accent: #9DB4E0; --accent-soft: #243149; --on-accent: #11161D;
-    --glass: rgba(255, 255, 255, .025); --hi: rgba(255, 255, 255, .14);
-    --glass-edge: rgba(170, 195, 230, .1); --glass-line: rgba(170, 195, 230, .38); --shine: rgba(255, 255, 255, .22); --ground: rgba(0, 0, 0, .5);
-    --t-body: #9DBB98; --t-people: #DBA698; --t-hand: #96B3D3; --t-home: #DDBE80; --t-mind: #B6A9D2; --t-none: #4A5058;
+    --jar-on-sunk: #2C3644; --jar-on-surface: #232B36; --jar-lip: #3A4655; --lid: #5C6B82; --hi: rgba(255, 255, 255, .14);
+    --t-body: #93A385; --t-people: #BE9486; --t-hand: #8899AC; --t-home: #C2AA7C; --t-mind: #A194AB; --t-none: #4A5058;
     --shadow: 0 1px 2px rgba(0, 0, 0, .25), 0 18px 40px -18px rgba(0, 0, 0, .6);
     --danger: #E8907A;
     color-scheme: dark;
@@ -26,9 +24,8 @@
 :root[data-theme="dark"] {
   --bg: #11161D; --surface: #19202A; --sunk: #222B37; --fg: #E3E9F0; --muted: #8E9AAA; --faint: #566273;
   --line: #2A3442; --accent: #9DB4E0; --accent-soft: #243149; --on-accent: #11161D;
-  --glass: rgba(255, 255, 255, .025); --hi: rgba(255, 255, 255, .14);
-    --glass-edge: rgba(170, 195, 230, .1); --glass-line: rgba(170, 195, 230, .38); --shine: rgba(255, 255, 255, .22); --ground: rgba(0, 0, 0, .5);
-  --t-body: #9DBB98; --t-people: #DBA698; --t-hand: #96B3D3; --t-home: #DDBE80; --t-mind: #B6A9D2; --t-none: #4A5058;
+  --jar-on-sunk: #2C3644; --jar-on-surface: #232B36; --jar-lip: #3A4655; --lid: #5C6B82; --hi: rgba(255, 255, 255, .14);
+  --t-body: #93A385; --t-people: #BE9486; --t-hand: #8899AC; --t-home: #C2AA7C; --t-mind: #A194AB; --t-none: #4A5058;
   --shadow: 0 1px 2px rgba(0, 0, 0, .25), 0 18px 40px -18px rgba(0, 0, 0, .6);
   --danger: #E8907A;
   color-scheme: dark;
@@ -257,3 +254,8 @@ button.tic:hover { filter: brightness(.95); }
 .set-item.danger { color: var(--danger); }
 .set-item.danger svg.i { color: var(--danger); }
 .swipe-tip { margin-top: 8px; }
+
+/* The jar is a shade off whatever it stands on. */
+canvas { --jar: var(--jar-on-surface); }
+
+.jar canvas { --jar: var(--jar-on-sunk); }

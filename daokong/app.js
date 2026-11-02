@@ -171,124 +171,103 @@ import { askJSON, getApiKey, setApiKey, testKey } from "./ai.js";
     if (finished === false) requestAnimationFrame(drawJar); else dropAnim = null;
   }
   // Paints one jar of pebbles on a canvas; returns false while the drop animation is still running.
-  // Mix a #rrggbb color toward white (amt > 0) or black (amt < 0).
-  function shade(hex, amt) {
-    var m = /^#?([0-9a-f]{6})$/i.exec(hex); if (!m) return hex;
-    var v = parseInt(m[1], 16), r = v >> 16, gr = (v >> 8) & 255, b = v & 255, t = amt > 0 ? 255 : 0, k = Math.abs(amt);
-    return "rgb(" + Math.round(r + (t - r) * k) + "," + Math.round(gr + (t - gr) * k) + "," + Math.round(b + (t - b) * k) + ")";
+  // Paints one jar of pebbles on a canvas; returns false while the drop animation is still running.
+  // Flat, Morandi-like: the jar is one quiet shape a shade off the background, no outline, no shine;
+  // pebbles are flat stones of close values that settle where they fall. sealed: draw a lid; lidP (0..1) lowers it.
+  var layoutCache = {};
+  function settle(n, seed, left, right, floor, r0) {
+    // Greedy drop: each pebble tries a few x positions and keeps the one where it comes to rest lowest.
+    var key = [n, seed, left | 0, right | 0, floor | 0, r0.toFixed(2)].join(":");
+    var hit = layoutCache[key]; if (hit) return hit;
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var r = r0 * (0.86 + rand(seed + i * 13) * 0.28), best = null;
+      for (var t = 0; t < 14; t++) {
+        var x = left + r + rand(seed + i * 31 + t * 7) * (right - left - 2 * r), y = floor - r;
+        for (var j = 0; j < out.length; j++) {
+          var o = out[j], dx = x - o.x, rr = r + o.r;
+          if (Math.abs(dx) < rr) y = Math.min(y, o.y - Math.sqrt(rr * rr - dx * dx));
+        }
+        if (!best || y > best.y + 0.5) best = { x: x, y: y, r: r };
+      }
+      out.push(best);
+    }
+    layoutCache[key] = out;
+    return out;
   }
-  // Paints one glass jar of pebbles on a canvas; returns false while the drop animation is still running.
-  // sealed: draw a lid; lidP (0..1) lowers it into place.
   function paintJar(c, cur, full, animate, sealed, lidP) {
     var dpr = window.devicePixelRatio || 1;
     var W = c.clientWidth, H = c.clientHeight;
     if (!W) return true;
     c.width = W * dpr; c.height = H * dpr;
     var g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-    full = full / CAP;
+    var jarIndex = Math.round(full / CAP);
 
-    // Geometry: an apothecary jar — short neck with a thick lip, rounded shoulders, slightly bellied body.
-    var top = 14, bottomPad = 6;
-    var jh = H - top - bottomPad;
-    var jw = Math.min(W - 10, jh * 0.92, 220);
+    // Proportions: a little taller than wide, short wide neck, generous corners.
+    var top = 12, bottomPad = 6, jh = H - top - bottomPad;
+    var jw = Math.min(W - 12, jh * 0.8, 180);
     var cx = W / 2, jx = cx - jw / 2, by = top + jh;
-    var rimH = Math.max(6, jh * 0.065), neckW = jw * 0.6, nx = cx - neckW / 2;
-    var ny = top + rimH, shY = ny + jh * 0.16, rB = jw * 0.2, belly = jw * 0.025;
+    var lipH = Math.max(5, jh * 0.05), neckW = jw * 0.56, neckH = jh * 0.07;
+    var shY = top + lipH + neckH, rTop = jw * 0.22, rBot = jw * 0.16;
     function body() {
+      var nx = cx - neckW / 2;
       g.beginPath();
-      g.moveTo(nx, ny);
-      g.bezierCurveTo(nx, ny + (shY - ny) * 0.55, jx, ny + (shY - ny) * 0.35, jx, shY);
-      g.quadraticCurveTo(jx - belly, (shY + by - rB) / 2, jx, by - rB);
-      g.quadraticCurveTo(jx, by, jx + rB, by);
-      g.lineTo(jx + jw - rB, by);
-      g.quadraticCurveTo(jx + jw, by, jx + jw, by - rB);
-      g.quadraticCurveTo(jx + jw + belly, (shY + by - rB) / 2, jx + jw, shY);
-      g.bezierCurveTo(jx + jw, ny + (shY - ny) * 0.35, nx + neckW, ny + (shY - ny) * 0.55, nx + neckW, ny);
+      g.moveTo(nx, top + lipH);
+      g.lineTo(nx, shY - rTop * 0.35);
+      g.quadraticCurveTo(nx, shY, nx - (neckW * 0.1), shY);
+      g.lineTo(jx + rTop, shY);
+      g.quadraticCurveTo(jx, shY, jx, shY + rTop);
+      g.lineTo(jx, by - rBot);
+      g.quadraticCurveTo(jx, by, jx + rBot, by);
+      g.lineTo(jx + jw - rBot, by);
+      g.quadraticCurveTo(jx + jw, by, jx + jw, by - rBot);
+      g.lineTo(jx + jw, shY + rTop);
+      g.quadraticCurveTo(jx + jw, shY, jx + jw - rTop, shY);
+      g.lineTo(nx + neckW + neckW * 0.1, shY);
+      g.quadraticCurveTo(nx + neckW, shY, nx + neckW, shY - rTop * 0.35);
+      g.lineTo(nx + neckW, top + lipH);
       g.closePath();
     }
+    var cs = getComputedStyle(c);
+    body(); g.fillStyle = cs.getPropertyValue("--jar").trim(); g.fill();
+    // The lip: a slightly deeper band, the only "detail".
+    var lipW = neckW + 6;
+    g.beginPath();
+    if (g.roundRect) g.roundRect(cx - lipW / 2, top, lipW, lipH, lipH / 2); else g.rect(cx - lipW / 2, top, lipW, lipH);
+    g.fillStyle = cs.getPropertyValue("--jar-lip").trim(); g.fill();
 
-    // Soft shadow on the surface the jar stands on.
-    var gs = g.createRadialGradient(cx, by + 1, 2, cx, by + 1, jw * 0.6);
-    gs.addColorStop(0, css("--ground")); gs.addColorStop(1, "rgba(0,0,0,0)");
-    g.save(); g.translate(cx, by + 1); g.scale(1, 0.12); g.translate(-cx, -(by + 1));
-    g.fillStyle = gs; g.beginPath(); g.arc(cx, by + 1, jw * 0.6, 0, Math.PI * 2); g.fill(); g.restore();
-
-    // Glass: thicker (more tinted) toward the edges, clear in the middle.
-    var gg = g.createLinearGradient(jx, 0, jx + jw, 0);
-    gg.addColorStop(0, css("--glass-edge")); gg.addColorStop(0.18, css("--glass"));
-    gg.addColorStop(0.82, css("--glass")); gg.addColorStop(1, css("--glass-edge"));
-    body(); g.fillStyle = gg; g.fill();
-
-    // Pebbles: sized so that exactly CAP of them fill the body to just below the shoulder.
-    var innerW = jw - 8, bodyH = by - shY - 2;
-    var pr = Math.sqrt(0.9 * bodyH * innerW / (CAP * 3.44));
-    var cols = Math.max(1, Math.floor(innerW / (pr * 2))), rowH = pr * 1.72;
-    var x0 = cx - cols * pr;
+    // Pebbles, sized so CAP of them fill the body to about the shoulder.
+    var pad = Math.max(3, jw * 0.035), left = jx + pad, right = jx + jw - pad, floor = by - pad;
+    var area = (right - left) * (floor - shY - rTop * 0.5);
+    var r0 = Math.sqrt(0.56 * area / (CAP * Math.PI));
+    var spots = settle(cur.length, 97 + jarIndex * 7919, left, right, floor, r0);
     var now = performance.now(), animDone = true;
     g.save(); body(); g.clip();
     cur.forEach(function (d, i) {
-      var row = Math.floor(i / cols), col = i % cols, odd = row % 2;
-      var x = x0 + pr + col * pr * 2 + (odd ? pr : 0) - (odd && col === cols - 1 ? pr * 2 : 0);
-      x += (rand(i + full * CAP) - 0.5) * pr * 0.3;
-      var y = by - 3 - pr * 0.85 - row * rowH + (rand(i * 3 + 7) - 0.5) * pr * 0.2;
+      var p = spots[i], y = p.y;
       if (animate && dropAnim && i === cur.length - 1) {
-        var p = Math.min(1, (now - dropAnim.start) / 560);
-        if (p < 1) animDone = false;
-        var ease = 1 - Math.pow(1 - p, 3);
-        y = (top - pr) + (y - (top - pr)) * ease;
+        var k = Math.min(1, (now - dropAnim.start) / 600);
+        if (k < 1) animDone = false;
+        var ease = k < 1 ? 1 - Math.pow(1 - k, 3) : 1;
+        y = (top - p.r) + (p.y - (top - p.r)) * ease;
       }
-      var rx = pr * (0.92 + rand(i * 5) * 0.12), ry = pr * (0.74 + rand(i * 7) * 0.1), rot = (rand(i * 11) - 0.5) * 0.9;
-      var base = color(d.tag);
-      g.beginPath(); g.ellipse(x + pr * 0.08, y + pr * 0.14, rx, ry, rot, 0, Math.PI * 2);
-      g.fillStyle = "rgba(0,0,0,.13)"; g.fill();
-      var pg = g.createRadialGradient(x - rx * 0.35, y - ry * 0.45, pr * 0.1, x, y, rx * 1.1);
-      pg.addColorStop(0, shade(base, 0.35)); pg.addColorStop(0.55, base); pg.addColorStop(1, shade(base, -0.18));
-      g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); g.fillStyle = pg; g.fill();
+      var rot = (rand(i * 11 + jarIndex) - 0.5) * 1.2;
+      g.beginPath(); g.ellipse(p.x, y, p.r * 1.04, p.r * 0.9, rot, 0, Math.PI * 2);
+      g.fillStyle = color(d.tag); g.fill();
     });
-    // A faint inner shadow at the base, where the glass is thickest.
-    var ib = g.createLinearGradient(0, by - rB, 0, by);
-    ib.addColorStop(0, "rgba(0,0,0,0)"); ib.addColorStop(1, css("--glass-edge"));
-    g.fillStyle = ib; g.fillRect(jx, by - rB, jw, rB);
     g.restore();
 
-    // Reflections on the front of the glass.
-    var shine = css("--shine");
-    var sx = jx + jw * 0.09, sw = Math.max(3, jw * 0.045), sTop = shY + 4, sBot = by - rB * 0.9;
-    var sg = g.createLinearGradient(0, sTop, 0, sBot);
-    sg.addColorStop(0, shine); sg.addColorStop(0.7, shine); sg.addColorStop(1, "rgba(255,255,255,0)");
-    g.beginPath();
-    if (g.roundRect) g.roundRect(sx, sTop, sw, sBot - sTop, sw / 2); else g.rect(sx, sTop, sw, sBot - sTop);
-    g.fillStyle = sg; g.fill();
-    g.beginPath();
-    if (g.roundRect) g.roundRect(sx + sw * 1.8, sTop + 4, sw * 0.45, (sBot - sTop) * 0.35, sw); else g.rect(sx + sw * 1.8, sTop + 4, sw * 0.45, (sBot - sTop) * 0.35);
-    g.fillStyle = shine; g.globalAlpha = 0.6; g.fill(); g.globalAlpha = 1;
-    g.beginPath(); g.ellipse(jx + jw * 0.82, shY + jh * 0.05, jw * 0.03, jh * 0.06, 0.15, 0, Math.PI * 2);
-    g.fillStyle = shine; g.globalAlpha = 0.5; g.fill(); g.globalAlpha = 1;
+    // A single hairline for the table it stands on.
+    g.fillStyle = cs.getPropertyValue("--jar-lip").trim();
+    g.fillRect(Math.max(0, cx - jw * 0.9), by, Math.min(W, jw * 1.8), 1);
 
-    // Outline and the lip of the neck.
-    body(); g.strokeStyle = css("--glass-line"); g.lineWidth = 1.2; g.stroke();
-    var lipW = neckW + Math.max(6, jw * 0.05);
-    g.beginPath();
-    if (g.roundRect) g.roundRect(cx - lipW / 2, top, lipW, rimH, rimH / 2); else g.rect(cx - lipW / 2, top, lipW, rimH);
-    g.fillStyle = css("--glass-edge"); g.fill(); g.strokeStyle = css("--glass-line"); g.stroke();
-    g.beginPath(); g.moveTo(cx - lipW / 2 + rimH / 2, top + 1.5); g.lineTo(cx + lipW / 2 - rimH / 2, top + 1.5);
-    g.strokeStyle = shine; g.lineWidth = 1; g.stroke();
-
-    if (sealed) { // a cloth-wrapped lid; lidP (0..1) lowers it into place
+    if (sealed) {
       var e = lidP == null ? 1 : 1 - Math.pow(1 - lidP, 3);
-      var lidW = lipW + Math.max(8, jw * 0.06), lidH = rimH + Math.max(6, jh * 0.05);
-      var ly = top - lidH * 0.55 - (1 - e) * 26;
+      var lidW = lipW + 8, lidH = lipH + 4, ly = top - 4 - (1 - e) * 24;
       g.globalAlpha = e;
-      var acc = css("--accent");
-      var lg = g.createLinearGradient(0, ly, 0, ly + lidH);
-      lg.addColorStop(0, shade(acc, 0.25)); lg.addColorStop(1, shade(acc, -0.1));
       g.beginPath();
-      if (g.roundRect) g.roundRect(cx - lidW / 2, ly, lidW, lidH, Math.min(6, lidH / 2)); else g.rect(cx - lidW / 2, ly, lidW, lidH);
-      g.fillStyle = lg; g.fill();
-      g.beginPath(); g.moveTo(cx - lidW / 2 + 3, ly + lidH * 0.62); g.lineTo(cx + lidW / 2 - 3, ly + lidH * 0.62);
-      g.strokeStyle = "rgba(0,0,0,.18)"; g.lineWidth = 1; g.stroke();
-      g.beginPath(); g.moveTo(cx - lidW / 2 + 4, ly + 1.5); g.lineTo(cx + lidW / 2 - 4, ly + 1.5);
-      g.strokeStyle = "rgba(255,255,255,.35)"; g.stroke();
+      if (g.roundRect) g.roundRect(cx - lidW / 2, ly, lidW, lidH, 3); else g.rect(cx - lidW / 2, ly, lidW, lidH);
+      g.fillStyle = css("--lid"); g.fill();
       g.globalAlpha = 1;
     }
 
