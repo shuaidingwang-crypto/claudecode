@@ -72,7 +72,8 @@ import { loadLocal, saveLocal, connect, pull, saveRemote, flush, isSynced, setEr
     saveRemote(s);
     // Ask the browser not to evict our data once there is something worth keeping.
     if (!persistAsked && (s.done.length || s.dumps.length) && navigator.storage && navigator.storage.persist) {
-      persistAsked = true; navigator.storage.persist().catch(function () {});
+      persistAsked = true;
+      try { navigator.storage.persist().catch(function () {}); } catch (e) { /* not allowed in a sandboxed frame */ }
     }
   }
 
@@ -715,6 +716,11 @@ import { loadLocal, saveLocal, connect, pull, saveRemote, flush, isSynced, setEr
   // Start on 倒出来 for a new user; once there is something in the jar, open on 做过的.
   goTab(s.done.length ? "done" : "dump");
   render();
+
+  // If something breaks, say so on screen instead of silently ignoring taps.
+  function reportError(msg) { toast("出错了：" + String(msg || "未知错误").slice(0, 80) + "。截图发给我", null, "i-x"); }
+  window.addEventListener("error", function (e) { reportError(e.message); });
+  window.addEventListener("unhandledrejection", function (e) { reportError(e.reason && (e.reason.message || e.reason.code || e.reason)); });
 
   // Sync with the artifact database when there is one (see store.js). The saved copy wins on open,
   // since this device's browser storage may have been cleared; a first connect uploads what is here.

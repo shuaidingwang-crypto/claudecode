@@ -1,5 +1,5 @@
 // Offline support for 倒空. Bump VERSION whenever any app file changes so phones pick up the update.
-const VERSION = "daokong-v7";
+const VERSION = "daokong-v8";
 const SHELL = [
   "./", "index.html", "styles.css", "app.js", "ai.js", "jar.js", "store.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
