@@ -636,7 +636,6 @@ function defineText() {
     { id: "ips_dd", card: "ips", title: T("DoorDash 非餐厅订单优惠"), amt: 10, get period() { return (typeof CFG !== "undefined" && CFG.ddPeriod) || "month"; },
       how: T("用卡送的 DashPass，在 Chase 登记（2027/12/31 前）。买菜、日用品等非餐厅订单结账时用，最多减 $10，过期不累积。这是结账折扣，不会出现在账单里，要手动记。") },
     { id: "ips_dashpass", card: "ips", title: T("DashPass 会员（卡送）"), period: "info", how: T("具体权益以 DoorDash 为准。") },
-    { id: "ips_ub", card: "ips", title: "United TravelBank Cash", amt: 25, period: "half", verify: true, how: T("绑定 MileagePlus 后每半年 $25（按第三方报道，与 IHG Premier 相同）。") },
     { id: "ips_fn", card: "ips", title: T("周年免房券（≤60k 分）"), amt: 0, period: "cardyear", cert: true, fn: "ips", how: T("每个开卡周年后发放。") },
     { id: "ips_15k", card: "ips", title: T("自然年 $15k：20k 分 + 5 晚房晚"), amt: 0, period: "year", goal: { key: "ipsCal", at: 15000 }, verify: true, how: T("另外每消费 $5k 得 2 晚房晚积分。") },
     { id: "ips_25k", card: "ips", title: T("自然年 $25k：Diamond 到次年底"), amt: 0, period: "year", goal: { key: "ipsCal", at: 25000 }, how: T("默认送 Platinum + 20 晚房晚积分。") },
