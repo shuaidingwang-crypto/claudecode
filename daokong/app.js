@@ -1,8 +1,8 @@
 import { askJSON, getApiKey, setApiKey, testKey } from "./ai.js";
 import { paintVessel, SHAPES } from "./jar.js";
+import { loadLocal, saveLocal, connect, pull, saveRemote, flush, isSynced, setErrorHandler } from "./store.js";
 
 (function () {
-  var KEY = "daokong-v1";
   var DAY = 86400000, CAP = 60;
   var TAGS = [
     { k: "body", n: "身体" }, { k: "people", n: "人" }, { k: "hand", n: "手艺" },
@@ -64,11 +64,12 @@ import { paintVessel, SHAPES } from "./jar.js";
   function blank() { return { dumps: [], one: null, done: [], next: 1 }; }
   function valid(x) { return x && Array.isArray(x.dumps) && Array.isArray(x.done) && typeof x.next === "number"; }
   var s;
-  try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) { s = null; }
+  s = loadLocal();
   if (!valid(s)) s = blank();
   var persistAsked = false;
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+    saveLocal(s);
+    saveRemote(s);
     // Ask the browser not to evict our data once there is something worth keeping.
     if (!persistAsked && (s.done.length || s.dumps.length) && navigator.storage && navigator.storage.persist) {
       persistAsked = true; navigator.storage.persist().catch(function () {});
@@ -627,6 +628,9 @@ import { paintVessel, SHAPES } from "./jar.js";
     $("key-status").textContent = inClaude ? "现在是在 Claude 里打开的，会直接用 Claude 分类，不用填 key。"
       : hasKey ? "已保存 key。自动分类和挑「最有意思的一件」会用 Claude。" : "没有 key 时，用关键词来猜分类。";
     $("key-del").hidden = !hasKey; $("key-test").hidden = !hasKey;
+    $("data-note").textContent = isSynced()
+      ? "记录存在你的 Claude 账号里，只有你能看到。页面更新不会丢，换设备打开也在。"
+      : "所有记录只存在这台设备上。换手机或清浏览器数据之前，先导出一份备份。";
     $("preview-cere").hidden = !currentJar().full;
     var sp = $("shape-pick"); sp.textContent = "";
     Object.keys(SHAPES).forEach(function (k) {
@@ -711,6 +715,27 @@ import { paintVessel, SHAPES } from "./jar.js";
   // Start on 倒出来 for a new user; once there is something in the jar, open on 做过的.
   goTab(s.done.length ? "done" : "dump");
   render();
+
+  // Sync with the artifact database when there is one (see store.js). The saved copy wins on open,
+  // since this device's browser storage may have been cleared; a first connect uploads what is here.
+  var lastJSON = null;
+  function adopt(remote) {
+    if (remote === null) return;                                   // no database here
+    if (remote === undefined) { if (s.done.length || s.dumps.length) { saveRemote(s, 0); } return; }
+    if (!valid(remote)) return;
+    var j = JSON.stringify(remote);
+    if (j === lastJSON || j === JSON.stringify(s)) { lastJSON = j; return; }
+    lastJSON = j; s = remote; saveLocal(s); render();
+  }
+  setErrorHandler(function (e) {
+    if (e && e.code === "quota_exceeded") toast("云端存储满了，记得在设置里导出备份", null, "i-x");
+  });
+  connect().then(adopt, function () {});
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") flush();
+    else if (isSynced()) pull().then(adopt, function () {});
+  });
+  window.addEventListener("pagehide", function () { flush(); });
 
   // Offline support; not available (and not needed) when the page is hosted inside another app.
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
