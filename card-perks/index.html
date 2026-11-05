@@ -138,7 +138,8 @@ textarea { width: 100%; min-height: 150px; font: 13px/1.45 var(--f-mono); resize
 .hdr-ctrls { display: flex; align-items: center; gap: 8px; }
 .who-bar { flex-basis: 100%; display: flex; align-items: center; gap: 8px; }
 .tile-hint { font-size: 11.5px; color: var(--warn); font-weight: 600; }
-.edit { all: unset; cursor: pointer; font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); border-bottom: 1px dashed var(--accent); padding: 0 1px; }
+.edit { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 8px; border-radius: 6px; background: var(--accent-soft); font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); -webkit-tap-highlight-color: transparent; }
+.edit::after { content: "✎"; font-size: 12px; opacity: .8; }
 .edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .edit-input { width: 6.5em; min-height: 30px; padding: 2px 6px; font: 14px var(--f-mono); }
 .switch { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 4px 0; min-height: 32px; font-size: 13px; font-weight: 600; color: var(--fg); }
@@ -208,6 +209,7 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"这次用了 $": "Used this time $",
 "Costco 实体店": "Costco warehouse",
 "Costco 加油": "Costco gas",
 "costco.com": "costco.com",
@@ -1085,6 +1087,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SHEET) c
 // View: 羊毛
 // ---------------------------------------------------------------------------
 const OPEN_CARDS = new Set();
+let PERK_OPEN = null; // perk row with the "log use" input open
 function setUsage(key, patch) {
   USAGE[key] = { ...(USAGE[key] || {}), ...patch };
   saveUsage(key); renderPerks(); renderUse();
@@ -1158,11 +1161,21 @@ function perkRow(b) {
   if (b.amt) {
     const used = u.used || 0;
     row.append(bar(used / b.amt, used >= b.amt ? "good" : ""),
-      h("div", { class: "row-head" },
+      h("div", { style: "display:grid;gap:8px" },
         h("span", { class: "note" }, T("已用 "), editNum(used, (x) => { const nu = Math.min(b.amt, x); setUsage(key, { used: nu, status: nu >= b.amt ? "done" : "open" }); }, { prefix: "$", label: T`${b.title} 已用`, fmt: fmt2, step: "0.01" }), ` / $${b.amt}`),
-        h("div", { class: "actions" },
+        PERK_OPEN === key ? null : h("div", { class: "actions" },
+          used < b.amt && u.status !== "na" ? h("button", { class: "small primary", onclick: () => { PERK_OPEN = key; renderPerks(); } }, T("记一笔")) : null,
           used < b.amt && u.status !== "na" ? h("button", { class: "small", onclick: () => setUsage(key, { used: b.amt, status: "done" }) }, T("用完了")) : null,
           h("button", { class: "small ghost", onclick: () => setUsage(key, { status: u.status === "na" ? "open" : "na" }) }, u.status === "na" ? T("恢复提醒") : T("不适用")))));
+    if (PERK_OPEN === key) {
+      const inp = h("input", { type: "number", inputmode: "decimal", step: "0.01", min: "0", placeholder: T("金额"), "aria-label": T("这次用了多少"), id: "rec-" + key, style: "width:7em" });
+      const ok = () => { const a = parseFloat(inp.value); if (!(a > 0)) return; const nu = Math.min(b.amt, used + a); PERK_OPEN = null; setUsage(key, { used: nu, status: nu >= b.amt ? "done" : "open" }); };
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") ok(); });
+      row.append(h("div", { class: "actions" }, h("span", { class: "note" }, T("这次用了 $")), inp,
+        h("button", { class: "small primary", onclick: ok }, T("记下")),
+        h("button", { class: "small ghost", onclick: () => { PERK_OPEN = null; renderPerks(); } }, T("取消"))));
+      setTimeout(() => inp.focus(), 0);
+    }
   } else if (b.cert) {
     const exp = h("input", { type: "date", value: u.expires || "", id: "exp-" + key, "aria-label": T("到期日"), onchange: (e) => setUsage(key, { expires: e.target.value }) });
     row.append(h("div", { class: "actions" }, h("label", { class: "field" }, h("span", {}, T("到期日")), exp),
