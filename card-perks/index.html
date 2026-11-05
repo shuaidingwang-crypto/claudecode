@@ -137,6 +137,8 @@ textarea { width: 100%; min-height: 150px; font: 13px/1.45 var(--f-mono); resize
 .seg button[aria-checked="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .hdr-ctrls { display: flex; align-items: center; gap: 8px; }
 .who-bar { flex-basis: 100%; display: flex; align-items: center; gap: 8px; }
+.period-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.period-nav button { min-height: 30px; padding: 2px 10px; }
 .tile-hint { font-size: 11.5px; color: var(--warn); font-weight: 600; }
 .edit { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 8px; border-radius: 6px; background: var(--accent-soft); font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); -webkit-tap-highlight-color: transparent; }
 .edit::after { content: "✎"; font-size: 12px; opacity: .8; }
@@ -209,6 +211,11 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"已结束": "Ended",
+"上一期": "Previous period",
+"下一期": "Next period",
+"回到本期": "Back to current",
+
 "这次用了 $": "Used this time $",
 "Costco 实体店": "Costco warehouse",
 "Costco 加油": "Costco gas",
@@ -1088,6 +1095,12 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SHEET) c
 // ---------------------------------------------------------------------------
 const OPEN_CARDS = new Set();
 let PERK_OPEN = null; // perk row with the "log use" input open
+const PERIOD_OFS = {}; // benefit id -> how many periods back the row is showing
+const PERIOD_MONTHS = { month: 1, quarter: 3, half: 6, year: 12, cardyear: 12 };
+function shiftPeriod(d, period, n) {
+  if (!n || !PERIOD_MONTHS[period]) return d;
+  return new Date(d.getFullYear(), d.getMonth() + n * PERIOD_MONTHS[period], 15);
+}
 function setUsage(key, patch) {
   USAGE[key] = { ...(USAGE[key] || {}), ...patch };
   saveUsage(key); renderPerks(); renderUse();
@@ -1153,11 +1166,18 @@ function perkRow(b) {
   const row = h("div", { class: "row" });
   const head = h("div", { class: "row-head" }, h("h3", {}, b.title), h("div", { class: "chips" }, b.verify ? h("span", { class: "chip warn" }, T("待核实")) : null));
   row.append(head);
-  const p = periodOf(b, NOW), key = b.id + "_" + p.key, u = USAGE[key] || {};
+  // Earlier periods can be opened to log credits after the fact.
+  const ofs = b.goal ? 0 : (PERIOD_OFS[b.id] || 0);
+  const p = periodOf(b, shiftPeriod(NOW, b.period, ofs)), key = b.id + "_" + p.key, u = USAGE[key] || {};
   const dl = daysLeft(p.end);
-  const st = u.status === "done" ? ["good", T("已用完")] : u.status === "na" ? ["", T("不适用")] : dl <= 21 ? ["bad", dayChip(dl)] : dl <= 75 ? ["warn", dayChip(dl)] : ["", dayChip(dl)];
+  const st = u.status === "done" ? ["good", T("已用完")] : u.status === "na" ? ["", T("不适用")] : ofs < 0 ? ["", T("已结束")] : dl <= 21 ? ["bad", dayChip(dl)] : dl <= 75 ? ["warn", dayChip(dl)] : ["", dayChip(dl)];
   head.lastChild.append(h("span", { class: "chip " + st[0] }, st[1]));
-  row.append(h("span", { class: "note" }, `${p.label} · ${b.how}`));
+  const nav = b.goal ? null : h("span", { class: "period-nav" },
+    h("button", { class: "small ghost", "aria-label": T("上一期"), disabled: ofs <= -8, onclick: () => { PERIOD_OFS[b.id] = ofs - 1; PERK_OPEN = null; renderPerks(); } }, "‹"),
+    h("b", {}, p.label),
+    h("button", { class: "small ghost", "aria-label": T("下一期"), disabled: ofs >= 0, onclick: () => { PERIOD_OFS[b.id] = ofs + 1; PERK_OPEN = null; renderPerks(); } }, "›"),
+    ofs < 0 ? h("button", { class: "small ghost", onclick: () => { PERIOD_OFS[b.id] = 0; PERK_OPEN = null; renderPerks(); } }, T("回到本期")) : null);
+  row.append(nav, h("span", { class: "note" }, b.goal ? `${p.label} · ${b.how}` : b.how));
   if (b.amt) {
     const used = u.used || 0;
     row.append(bar(used / b.amt, used >= b.amt ? "good" : ""),
