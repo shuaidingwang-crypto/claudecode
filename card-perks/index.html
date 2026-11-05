@@ -139,6 +139,7 @@ textarea { width: 100%; min-height: 150px; font: 13px/1.45 var(--f-mono); resize
 .who-bar { flex-basis: 100%; display: flex; align-items: center; gap: 8px; }
 .period-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
 .period-nav button { min-height: 30px; padding: 2px 10px; }
+.chip-btn { border: 0; cursor: pointer; font-family: inherit; min-height: 0; }
 .tile-hint { font-size: 11.5px; color: var(--warn); font-weight: 600; }
 .edit { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 8px; border-radius: 6px; background: var(--accent-soft); font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); -webkit-tap-highlight-color: transparent; }
 .edit::after { content: "✎"; font-size: 12px; opacity: .8; }
@@ -211,6 +212,9 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"已核实就点一下，标签会消失": "Tap once you've checked; the label goes away",
+"标记为已核实": "Mark as verified",
+
 "已结束": "Ended",
 "上一期": "Previous period",
 "下一期": "Next period",
@@ -635,6 +639,7 @@ const DEFAULT_CONFIG = {
   discoverQ: {},                       // overrides { "2026Q4": [...] }
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
+  verified: {},                       // ids the user confirmed, hides their "unverified" chip
   subs: { ips: { target: 5000, bonus: 200000, by: "2027-01-29", opened: "2026-10-29", done: false } }, // welcome offers being chased
   canUse: { me: [], spouse: [] },      // authorized-user cards: his cards I can use / my cards he can use
   last4: { mar: "", ihg: "", ips: "", fr: "", ua: "" },  // Chase card last 4 digits, for CSV matching
@@ -909,6 +914,12 @@ function switchBtn(on, label, onToggle) {
   return h("button", { class: "switch", type: "button", role: "switch", "aria-checked": String(!!on), onclick: (e) => { e.stopPropagation(); onToggle(!on); } },
     h("span", { class: "knob" }), label);
 }
+// "Unverified" chip; tapping it records that the user checked the terms.
+function verifyChip(flag, id) {
+  if (!flag || CFG.verified?.[id]) return null;
+  return h("button", { type: "button", class: "chip warn chip-btn", title: T("已核实就点一下，标签会消失"), "aria-label": T("标记为已核实"),
+    onclick: (e) => { e.stopPropagation(); setCfg(() => { CFG.verified = { ...(CFG.verified || {}), [id]: true }; }); } }, T("待核实"), " ✕");
+}
 function setCfg(fn) { fn(); saveCfg(); renderAll(); }
 
 // ---------------------------------------------------------------------------
@@ -996,7 +1007,7 @@ function goalRow(g) {
   const everyday = valuePct(g.card, "other", NOW).pct;
   const extra = g.bonus / (g.at - base) * 100;
   return h("div", { class: "row" },
-    h("div", { class: "row-head" }, h("h3", {}, g.t), h("div", { class: "chips" }, g.verify ? h("span", { class: "chip warn" }, T("待核实")) : null, cardTag(g.card))),
+    h("div", { class: "row-head" }, h("h3", {}, g.t), h("div", { class: "chips" }, verifyChip(g.verify, "goal_" + g.key + "_" + g.at), cardTag(g.card))),
     bar((spent - base) / (g.at - base), spent >= g.at ? "good" : ""),
     h("span", { class: "note" }, T("已花 "), editNum(spent, (x) => setCfg(() => { CFG.spend[g.key] = x; }), { prefix: "$", label: T("已花金额") }), ` / $${fmt0(g.at)}`,
       spent >= g.at ? T(" · 已达标") : g.bonus ? T` · 达标后一般消费 ≈ ${(everyday + extra).toFixed(2)}%` : ""));
@@ -1072,7 +1083,7 @@ function renderSheet() {
   const list = h("div", { class: "rank" }, r.map((x, i) => {
     const cur = CARDS[x.card].cur;
     return h("div", { class: "rank-row" + (i === 0 ? " best" : "") },
-      h("span", {}, cardTag(x.card), x.verify ? h("span", { class: "chip warn", style: "margin-left:6px" }, T("待核实")) : null),
+      h("span", {}, cardTag(x.card), verifyChip(x.verify, "earn_" + x.card)),
       h("span", { class: "num pct" }, pctS(x.pct)),
       h("span", { class: "note" }, `${x.m}x × `, editNum(CFG.vals[cur], (val) => setCfg(() => { CFG.vals[cur] = val; }), { suffix: "¢", step: "0.05", label: T`${CUR_LABEL[cur]} 每分价值`, fmt: (n) => String(n) }), ` ${CUR_LABEL[cur]}`,
         x.notes.length ? " · " + x.notes.join(" · ") : "", x.sub ? T` · 冲开卡礼：每 $1 另值约 ${fmt0(x.sub.boost)}¢` : ""));
@@ -1164,7 +1175,7 @@ function renderPerks() {
 }
 function perkRow(b) {
   const row = h("div", { class: "row" });
-  const head = h("div", { class: "row-head" }, h("h3", {}, b.title), h("div", { class: "chips" }, b.verify ? h("span", { class: "chip warn" }, T("待核实")) : null));
+  const head = h("div", { class: "row-head" }, h("h3", {}, b.title), h("div", { class: "chips" }, verifyChip(b.verify, b.id)));
   row.append(head);
   // Earlier periods can be opened to log credits after the fact.
   const ofs = b.goal ? 0 : (PERIOD_OFS[b.id] || 0);
