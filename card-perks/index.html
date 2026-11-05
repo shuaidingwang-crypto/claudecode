@@ -212,6 +212,9 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"申请 Chase Sapphire Preferred": "Apply for Chase Sapphire Preferred",
+"IHG Select 开卡礼刷完后再申请，避免两张卡抢开卡消费。先查信用报告：过去 24 个月新开的卡（含附属卡）要少于 5 张。批下来后告诉我，账本里的 Chase 点数会改成可转 United 的估值。": "Apply after finishing the IHG Select welcome bonus so the two cards don't compete for spend. Check your credit report first: fewer than 5 new cards (authorized-user cards included) in the past 24 months. Once approved, tell me and Chase points in the ledger will switch to a United-transfer value.",
+
 "用卡送的 DashPass，在 Chase 登记（2027/12/31 前）。买菜、日用品等非餐厅订单结账时用，最多减 $10，过期不累积。这是结账折扣，不会出现在账单里，要手动记。": "Uses the card's complimentary DashPass; enroll with Chase by 12/31/2027. Up to $10 off non-restaurant orders (groceries, essentials) at checkout; unused discounts don't roll over. It's a checkout discount, so it won't show on statements; log it by hand.",
 "DashPass 会员（卡送）": "DashPass membership (from the card)",
 "具体权益以 DoorDash 为准。": "See DoorDash for what's included.",
@@ -967,7 +970,7 @@ function todos() {
   // Dated plans: shown from `from` until marked done.
   for (const pl of PLANS().filter((x) => mine.includes(x.card))) {
     const key = "plan_" + pl.id, u = USAGE[key] || {};
-    if (u.status === "done" || NOW < D(pl.from)) continue;
+    if (u.status === "done" || (pl.when ? !pl.when() : NOW < D(pl.from))) continue;
     out.push({ id: key, days: Math.max(0, daysLeft(D(pl.date))), t: pl.t, d: `${pl.date} · ${pl.d}`, actions: [[T("处理好了"), () => setUsage(key, { status: "done" })]] });
   }
   for (const k of ["dis", "fr"].filter((x) => mine.includes(x))) {
@@ -1013,6 +1016,7 @@ function todoRow(t) {
 }
 const PLANS = () => [
   { id: "mar_renew_2027", card: "mar", from: "2026-12-01", date: "2027-01-22", t: T("Boundless 续卡：留还是降级"), d: T("$95 年费换一张 35k 免房券（12 个月有效）。2027 年至少住一晚 Marriott 就留；一晚都不住就问 Chase 能否降级成无年费卡。") },
+  { id: "csp_apply", card: "fr", date: "2027-01-29", when: () => !!CFG.subs?.ips?.done || NOW >= D("2027-01-29"), t: T("申请 Chase Sapphire Preferred"), d: T("IHG Select 开卡礼刷完后再申请，避免两张卡抢开卡消费。先查信用报告：过去 24 个月新开的卡（含附属卡）要少于 5 张。批下来后告诉我，账本里的 Chase 点数会改成可转 United 的估值。") },
   { id: "brilliant_2028", card: "mar", from: "2028-02-01", date: "2028-03-15", t: T("申请 Marriott Bonvoy Brilliant（大聪明卡）"), d: T("Boundless 开卡礼 2026/3/14 到账，满 24 个月后才有大聪明卡开卡礼资格。提交前看 Amex 的资格弹窗；批卡即得白金。") },
 ];
 const GOALS = () => [
