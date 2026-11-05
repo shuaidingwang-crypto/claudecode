@@ -212,6 +212,15 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"26/9 后 · 每月": "After 9/2026 · monthly",
+"26/9 前 · 每季": "Before 9/2026 · quarterly",
+"DoorDash 非餐厅订单优惠": "DoorDash non-restaurant promo",
+"需开通 DashPass 并在 Chase 登记（2027/12/31 前）。买菜、日用品等非餐厅订单结账时用，最多减 $10，过期不累积。这是结账折扣，不会出现在账单里，要手动记。": "Requires DashPass and enrolling with Chase by 12/31/2027. Up to $10 off non-restaurant orders (groceries, essentials) at checkout; unused discounts don't roll over. It's a checkout discount, so it won't show on statements; log it by hand.",
+"我的 DashPass 开通于：": "My DashPass started:",
+"DoorDash 优惠周期": "DoorDash promo cadence",
+"2026/9/1 之后（每月）": "On/after 9/1/2026 (monthly)",
+"2025/2–2026/8（每季）": "Feb 2025\u2013Aug 2026 (quarterly)",
+
 "绑定 MileagePlus 后每半年 $25（1–6 月、7–12 月各一次），一年 $50。": "After linking MileagePlus: $25 each half-year (Jan\u2013Jun and Jul\u2013Dec), $50 a year.",
 "绑定 MileagePlus 后每半年 $25（按第三方报道，与 IHG Premier 相同）。": "After linking MileagePlus: $25 each half-year (per third-party reports, same as IHG Premier).",
 
@@ -616,7 +625,9 @@ function defineText() {
     { id: "aa_info", card: "aa", title: T("无年费 · 超市和 AA 消费 2x"), period: "info", how: T("2026/11 由 Platinum Select 降级而来：没有免费托运和优先登机；3% 海外交易手续费。") },
     { id: "ips_fb", card: "ips", title: T("IHG 酒店餐饮抵扣"), amt: 75, period: "quarter", how: T("每季度最多 $75，在 IHG 酒店餐饮消费（挂房账）。") },
     { id: "ips_air", card: "ips", title: T("航空抵扣 $200"), amt: 200, period: "year", how: T("每自然年单笔 $250 以上直接向航司购买，返 $200。据报道活动到 2027/12/31。") },
-    { id: "ips_insta", card: "ips", title: T("Instacart 抵扣"), amt: 10, period: "month", verify: true, how: T("每月最多 $10（只有一个来源提到，待核实）。") },
+    // DoorDash promo: monthly if DashPass started on/after 2026-09-01, quarterly if Feb 2025–Aug 2026 (CFG.ddPeriod).
+    { id: "ips_dd", card: "ips", title: T("DoorDash 非餐厅订单优惠"), amt: 10, get period() { return (typeof CFG !== "undefined" && CFG.ddPeriod) || "month"; },
+      how: T("需开通 DashPass 并在 Chase 登记（2027/12/31 前）。买菜、日用品等非餐厅订单结账时用，最多减 $10，过期不累积。这是结账折扣，不会出现在账单里，要手动记。") },
     { id: "ips_ub", card: "ips", title: "United TravelBank Cash", amt: 25, period: "half", verify: true, how: T("绑定 MileagePlus 后每半年 $25（按第三方报道，与 IHG Premier 相同）。") },
     { id: "ips_fn", card: "ips", title: T("周年免房券（≤60k 分）"), amt: 0, period: "cardyear", cert: true, fn: "ips", how: T("每个开卡周年后发放。") },
     { id: "ips_15k", card: "ips", title: T("自然年 $15k：20k 分 + 5 晚房晚"), amt: 0, period: "year", goal: { key: "ipsCal", at: 15000 }, verify: true, how: T("另外每消费 $5k 得 2 晚房晚积分。") },
@@ -642,6 +653,7 @@ const DEFAULT_CONFIG = {
   discoverQ: {},                       // overrides { "2026Q4": [...] }
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
+  ddPeriod: "month",                   // IHG Select DoorDash promo cadence: month | quarter
   verified: {},                       // ids the user confirmed, hides their "unverified" chip
   subs: { ips: { target: 5000, bonus: 200000, by: "2027-01-29", opened: "2026-10-29", done: false } }, // welcome offers being chased
   canUse: { me: [], spouse: [] },      // authorized-user cards: his cards I can use / my cards he can use
@@ -1192,6 +1204,9 @@ function perkRow(b) {
     h("button", { class: "small ghost", "aria-label": T("下一期"), disabled: ofs >= 0, onclick: () => { PERIOD_OFS[b.id] = ofs + 1; PERK_OPEN = null; renderPerks(); } }, "›"),
     ofs < 0 ? h("button", { class: "small ghost", onclick: () => { PERIOD_OFS[b.id] = 0; PERK_OPEN = null; renderPerks(); } }, T("回到本期")) : null);
   row.append(nav, h("span", { class: "note" }, b.goal ? `${p.label} · ${b.how}` : b.how));
+  if (b.id === "ips_dd") row.append(h("div", { class: "actions" }, h("span", { class: "note" }, T("我的 DashPass 开通于：")),
+    h("div", { class: "seg", role: "radiogroup", "aria-label": T("DoorDash 优惠周期") }, [["month", T("26/9 后 · 每月")], ["quarter", T("26/9 前 · 每季")]].map(([v, l]) =>
+      h("button", { type: "button", role: "radio", "aria-checked": String((CFG.ddPeriod || "month") === v), onclick: () => { PERIOD_OFS[b.id] = 0; setCfg(() => { CFG.ddPeriod = v; }); } }, l)))));
   if (b.amt) {
     const used = u.used || 0;
     row.append(bar(used / b.amt, used >= b.amt ? "good" : ""),
@@ -1315,12 +1330,12 @@ function inferMonth(txns) {
   const c = {}; for (const t of txns) if (t.date) c[t.date.slice(0, 7)] = (c[t.date.slice(0, 7)] || 0) + 1;
   return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
 }
-const CREDIT_IDS = ["hh_resort", "hh_flight", "hh_clear", "ihg_fb", "mar_air", "ips_fb", "ips_air", "ips_insta", "ua_insta", "ua_ride", "ua_renowned"];
+const CREDIT_IDS = ["hh_resort", "hh_flight", "hh_clear", "ihg_fb", "mar_air", "ips_fb", "ips_air", "ua_insta", "ua_ride", "ua_renowned"];
 function localCredit(desc, card) {
   if (!/credit/i.test(desc)) return null;
   if (/resort/i.test(desc)) return "hh_resort";
   if (/clear/i.test(desc)) return "hh_clear";
-  if (/instacart/i.test(desc)) return { ips: "ips_insta", ua: "ua_insta" }[card] || null;
+  if (/instacart/i.test(desc)) return card === "ua" ? "ua_insta" : null;
   if (card === "ua" && /uber|lyft|rideshare/i.test(desc)) return "ua_ride";
   if (card === "ua" && /renowned/i.test(desc)) return "ua_renowned";
   if (/airline|flight|air travel/i.test(desc)) return { mar: "mar_air", hh: "hh_flight", ips: "ips_air" }[card] || null;
@@ -1341,7 +1356,7 @@ Each line is index|date|description|amount. Amount sign is already normalized: p
 
 For EVERY line output {"i":index,"merchant":"short clean merchant name","category":one of ${JSON.stringify(CAT_ENUM)},"foreign":bool (foreign currency or foreign merchant),"flag":null or "fee"|"interest"|"subscription"|"duplicate"|"unusual","note":"<=12 words in ${LANG === "en" ? "English" : "Chinese"}, only when flag is set","creditFor":null or a benefit id}
 Category guidance: food delivery = dining; Walmart/Target = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; Costco warehouse = costco, Costco gas station = costco_gas, costco.com = costco_online; Apple / App Store / iTunes purchases = apple; Apple / App Store / iTunes purchases = apple; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
-creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "ihg_fb" (IHG food & beverage credit), "mar_air" (Marriott card airline credit), "ips_fb" / "ips_air" / "ips_insta" (IHG Premier Select food & beverage / airline / Instacart credits), "ua_insta" / "ua_ride" / "ua_renowned" (United Club Card Instacart / rideshare / Renowned Hotels credits). United Airlines purchases = flight_ua. Otherwise null.
+creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "ihg_fb" (IHG food & beverage credit), "mar_air" (Marriott card airline credit), "ips_fb" / "ips_air" (IHG Premier Select food & beverage / airline credits), "ua_insta" / "ua_ride" / "ua_renowned" (United Club Card Instacart / rideshare / Renowned Hotels credits). United Airlines purchases = flight_ua. Otherwise null.
 
 Then up to 5 short ${LANG === "en" ? "English" : "Chinese"} observations about habits worth questioning (subscriptions to cancel, avoidable fees, spend jumps). Do not discuss which card to use.
 
