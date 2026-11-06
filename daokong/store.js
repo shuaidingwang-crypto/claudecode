@@ -20,6 +20,13 @@ let onError = () => {};
 export function isSynced() { return !!ref; }
 export function setErrorHandler(fn) { onError = fn; }
 
+// Snapshot data from the database is frozen; the app mutates its state, so always hand it a copy.
+function unpack(snap) {
+  if (!snap.exists) return undefined;
+  const body = snap.data() || {};
+  return body.state === undefined ? undefined : JSON.parse(JSON.stringify(body.state));
+}
+
 function withTimeout(p, ms) {
   return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej({ code: "timeout" }), ms))]);
 }
@@ -39,14 +46,14 @@ export async function connect() {
   const doc = db.collection("data/users/" + id).doc("state");
   const snap = await withTimeout(doc.get(), 10000);
   ref = doc;
-  return snap.exists ? (snap.data() || {}).state : undefined;
+  return unpack(snap);
 }
 
 /** Read the saved state again (e.g. when the app comes back to the foreground). */
 export async function pull() {
   if (!ref) return null;
   const snap = await withTimeout(ref.get(), 10000);
-  return snap.exists ? (snap.data() || {}).state : undefined;
+  return unpack(snap);
 }
 
 /** Queue a write; bursts of changes become one write, and writes never overlap. */
