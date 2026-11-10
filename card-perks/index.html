@@ -212,6 +212,9 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"开卡券：通常开卡后 8–14 周到账（约 {}–{}），偶有更晚": "Opening free night: usually arrives 8\u201314 weeks after opening (about {}\u2013{}), sometimes later",
+"第一张要等 {} 开卡周年后发放": "First one arrives after the {} account anniversary",
+
 "航空抵扣 $100": "$100 airline credit",
 "每自然年单笔 $250 以上的航空消费后返 $100。充值 United TravelBank 也算。": "$100 back once per calendar year after a single $250+ airline purchase. Loading United TravelBank counts.",
 
@@ -667,6 +670,7 @@ const DEFAULT_CONFIG = {
   discoverQ: {},                       // overrides { "2026Q4": [...] }
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
+  opened: {},                         // card -> account open date (YYYY-MM-DD)
   ddPeriod: "month",                   // IHG Select DoorDash promo cadence: month | quarter
   verified: {},                       // ids the user confirmed, hides their "unverified" chip
   subs: { ips: { target: 5000, bonus: 200000, by: "2027-01-29", opened: "2026-10-29", done: false } }, // welcome offers being chased
@@ -1136,6 +1140,16 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && SHEET) c
 // ---------------------------------------------------------------------------
 const OPEN_CARDS = new Set();
 let PERK_OPEN = null; // perk row with the "log use" input open
+// When a card's free night shows up: Aspire also gives one 8–14 weeks after opening; the others only after an anniversary.
+function certIssueNote(b, p) {
+  const opened = CFG.opened?.[b.card]; if (!opened) return null;
+  const o = D(opened), firstAnniv = new Date(o.getFullYear() + 1, o.getMonth(), o.getDate());
+  const fmt = (d) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+  const plus = (d, days) => new Date(d.getTime() + days * DAY);
+  if (b.card === "hh" && NOW < firstAnniv) return T`开卡券：通常开卡后 8–14 周到账（约 ${fmt(plus(o, 56))}–${fmt(plus(o, 98))}），偶有更晚`;
+  if (NOW < firstAnniv) return T`第一张要等 ${fmt(firstAnniv)} 开卡周年后发放`;
+  return null;
+}
 const PERIOD_OFS = {}; // benefit id -> how many periods back the row is showing
 const PERIOD_MONTHS = { month: 1, quarter: 3, half: 6, year: 12, cardyear: 12 };
 function shiftPeriod(d, period, n) {
@@ -1241,6 +1255,8 @@ function perkRow(b) {
       setTimeout(() => inp.focus(), 0);
     }
   } else if (b.cert) {
+    const issue = certIssueNote(b, p);
+    if (issue && !u.expires && u.status !== "done") row.append(h("span", { class: "chip acc", style: "justify-self:start;white-space:normal" }, issue));
     const exp = h("input", { type: "date", value: u.expires || "", id: "exp-" + key, "aria-label": T("到期日"), onchange: (e) => setUsage(key, { expires: e.target.value }) });
     row.append(h("div", { class: "actions" }, h("label", { class: "field" }, h("span", {}, T("到期日")), exp),
       h("button", { class: "small" + (u.status === "done" ? "" : " primary"), onclick: () => setUsage(key, { status: u.status === "done" ? "open" : "done" }) }, u.status === "done" ? T("撤销已用") : T("已订房"))));
