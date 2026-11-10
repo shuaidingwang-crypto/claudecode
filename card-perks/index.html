@@ -212,6 +212,9 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"航空抵扣 $100": "$100 airline credit",
+"每自然年单笔 $250 以上的航空消费后返 $100。充值 United TravelBank 也算。": "$100 back once per calendar year after a single $250+ airline purchase. Loading United TravelBank counts.",
+
 "每季度一张 $25 餐饮券，在 IHG 账户里。住 IHG 时把餐饮挂房账，退房前在 IHG app 里兑换；季末作废。不是账单返现，要手动记。": "A $25 dining voucher each quarter in your IHG account. Charge food and drinks to your room at an IHG hotel and redeem it in the IHG app before checkout; it expires at quarter end. It's not a statement credit, so log it by hand.",
 "每季度一张 $75 餐饮券，在 IHG 账户里。住 IHG 时把餐饮挂房账，退房前在 IHG app 里兑换；季末作废。不是账单返现，要手动记。": "A $75 dining voucher each quarter in your IHG account. Charge food and drinks to your room at an IHG hotel and redeem it in the IHG app before checkout; it expires at quarter end. It's not a statement credit, so log it by hand.",
 
@@ -628,6 +631,7 @@ function defineText() {
     { id: "hh_conrad", card: "hh", title: T("Waldorf / Conrad $100 房内消费"), period: "info", how: T("用 Aspire 专属价预订 2 晚以上 Waldorf Astoria 或 Conrad 时可用。") },
     { id: "ihg_ub", card: "ihg", title: "United TravelBank Cash", amt: 25, period: "half", how: T("绑定 MileagePlus 后每半年 $25（1–6 月、7–12 月各一次），一年 $50。") },
     { id: "ihg_fb", card: "ihg", title: T("IHG 酒店餐饮抵扣"), amt: 25, period: "quarter", how: T("每季度一张 $25 餐饮券，在 IHG 账户里。住 IHG 时把餐饮挂房账，退房前在 IHG app 里兑换；季末作废。不是账单返现，要手动记。") },
+    { id: "ihg_air", card: "ihg", title: T("航空抵扣 $100"), amt: 100, period: "year", how: T("每自然年单笔 $250 以上的航空消费后返 $100。充值 United TravelBank 也算。") },
     { id: "ihg_fn", card: "ihg", title: T("周年免房券（≤40k 分，可补分）"), amt: 0, period: "cardyear", cert: true, fn: "ihg", how: T("续卡后发放，可用积分补差价。改版后上限据报道升到 50k（待核实）。") },
     { id: "ihg_20k", card: "ihg", title: T("$20k 消费奖励：$100 + 10k 分"), amt: 0, period: "cardyear", goal: { key: "ihgYear", at: 20000 }, how: T("卡年度内消费满 $20k 且续卡后发放。") },
     { id: "ihg_4th", card: "ihg", title: T("积分兑换第 4 晚免费"), period: "info", how: T("连住 4 晚以上积分房时自动生效。") },
@@ -1341,7 +1345,7 @@ function inferMonth(txns) {
   const c = {}; for (const t of txns) if (t.date) c[t.date.slice(0, 7)] = (c[t.date.slice(0, 7)] || 0) + 1;
   return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
 }
-const CREDIT_IDS = ["hh_resort", "hh_flight", "hh_clear", "mar_air", "ips_air", "ua_insta", "ua_ride", "ua_renowned"];
+const CREDIT_IDS = ["hh_resort", "hh_flight", "hh_clear", "mar_air", "ips_air", "ihg_air", "ua_insta", "ua_ride", "ua_renowned"];
 function localCredit(desc, card) {
   if (!/credit/i.test(desc)) return null;
   if (/resort/i.test(desc)) return "hh_resort";
@@ -1349,7 +1353,7 @@ function localCredit(desc, card) {
   if (/instacart/i.test(desc)) return card === "ua" ? "ua_insta" : null;
   if (card === "ua" && /uber|lyft|rideshare/i.test(desc)) return "ua_ride";
   if (card === "ua" && /renowned/i.test(desc)) return "ua_renowned";
-  if (/airline|flight|air travel/i.test(desc)) return { mar: "mar_air", hh: "hh_flight", ips: "ips_air" }[card] || null;
+  if (/airline|flight|air travel/i.test(desc)) return { mar: "mar_air", hh: "hh_flight", ips: "ips_air", ihg: "ihg_air" }[card] || null;
   return null;
 }
 function localClassify(t, card) {
@@ -1366,7 +1370,7 @@ Each line is index|date|description|amount. Amount sign is already normalized: p
 
 For EVERY line output {"i":index,"merchant":"short clean merchant name","category":one of ${JSON.stringify(CAT_ENUM)},"foreign":bool (foreign currency or foreign merchant),"flag":null or "fee"|"interest"|"subscription"|"duplicate"|"unusual","note":"<=12 words in ${LANG === "en" ? "English" : "Chinese"}, only when flag is set","creditFor":null or a benefit id}
 Category guidance: food delivery = dining; Walmart/Target = other; movies/concerts/tickets/theme parks = entertainment (streaming stays streaming); power/gas/water/internet/phone bills = utilities; Costco warehouse = costco, Costco gas station = costco_gas, costco.com = costco_online; Apple / App Store / iTunes purchases = apple; Apple / App Store / iTunes purchases = apple; OTAs (Expedia etc.) = hotel_other; American Airlines = flight_aa, other airlines = flight_other; card payments = payment; merchant refunds = refund; annual/late fees = other with flag "fee".
-creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "mar_air" (Marriott card airline credit), "ips_air" (IHG Premier Select airline credit), "ua_insta" / "ua_ride" / "ua_renowned" (United Club Card Instacart / rideshare / Renowned Hotels credits). United Airlines purchases = flight_ua. Otherwise null.
+creditFor applies only to negative lines that are the issuer's benefit statement credits: "hh_resort" (Hilton resort credit), "hh_flight" (Amex airline/flight credit), "hh_clear" (CLEAR credit), "mar_air" (Marriott card airline credit), "ips_air" (IHG Premier Select airline credit), "ihg_air" (IHG Premier airline credit), "ua_insta" / "ua_ride" / "ua_renowned" (United Club Card Instacart / rideshare / Renowned Hotels credits). United Airlines purchases = flight_ua. Otherwise null.
 
 Then up to 5 short ${LANG === "en" ? "English" : "Chinese"} observations about habits worth questioning (subscriptions to cancel, avoidable fees, spend jumps). Do not discuss which card to use.
 
