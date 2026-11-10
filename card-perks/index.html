@@ -212,6 +212,22 @@ details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 let LANG = "zh";
 try { LANG = localStorage.getItem("ymzb:lang") || (/^zh/i.test(navigator.language) ? "zh" : "en"); } catch { LANG = /^zh/i.test(navigator.language || "") ? "zh" : "en"; }
 const EN = {
+"开卡礼已兑换": "Bonuses redeemed",
+"净赚": "Net",
+"抵扣按现金算；开卡礼按积分估值或你填的金额算；周年免房券不计入。还有约 ${} 的开卡礼没兑换。": "Credits count at cash value; welcome bonuses at point value or the amount you entered; anniversary free nights aren't included. About ${} of welcome bonuses are still unredeemed.",
+"开卡礼": "Welcome bonuses",
+"已兑换": "Redeemed",
+"未兑换": "Not redeemed",
+" 分 ≈ ": " pts \u2248 ",
+"价值 ": "Value ",
+"开卡礼价值": "Bonus value",
+"改回未兑换": "Mark not redeemed",
+"标记已兑换": "Mark redeemed",
+"5 张免房券（每张 ≤50k）": "5 free nights (\u226450k each)",
+"按券面上限 × 每分价值估，可改成实际省下的房费": "Estimated at cap \u00d7 point value; change to the room cost you actually saved",
+"开卡积分": "Welcome points",
+"200,000 积分": "200,000 points",
+
 "在 RenownedHotels.com 订酒店并用 United Club 卡预付，每个卡年度返最多 $200。通过它订的房一般含双人早餐和 $100 酒店消费额度，卡上还有 5x。": "Book a hotel on RenownedHotels.com and prepay with the United Club card; up to $200 back each card year. Stays booked this way usually include breakfast for two and a $100 property credit, and earn 5x on the card.",
 
 "开卡券：通常开卡后 8–14 周到账（约 {}–{}），偶有更晚": "Opening free night: usually arrives 8\u201314 weeks after opening (about {}\u2013{}), sometimes later",
@@ -672,6 +688,7 @@ const DEFAULT_CONFIG = {
   discoverQ: {},                       // overrides { "2026Q4": [...] }
   disActivated: {},
   disMatch: false,                     // first-year Cashback Match
+  bonuses: {},                        // card -> { label, points | value, status: used | open, note }
   opened: {},                         // card -> account open date (YYYY-MM-DD)
   ddPeriod: "month",                   // IHG Select DoorDash promo cadence: month | quarter
   verified: {},                       // ids the user confirmed, hides their "unverified" chip
@@ -1165,6 +1182,19 @@ function setUsage(key, patch) {
 const FEE_NOTES = {
   ihg: () => T("2027 年续卡时年费 $99 → $150；非 IHG 的广义旅行 5x 只到 2026/12/31。"),
 };
+// Welcome bonuses: points are valued at the card's point value unless a dollar value was entered.
+function bonusValue(k, b) { return b.value != null ? b.value : (b.points || 0) * CFG.vals[CARDS[k].cur] / 100; }
+function bonusRow(k, b) {
+  const set = (f) => setCfg(() => { CFG.bonuses = { ...CFG.bonuses, [k]: { ...CFG.bonuses[k], ...f } }; });
+  const used = b.status === "used";
+  return h("div", { class: "row" },
+    h("div", { class: "row-head" }, h("h3", {}, cardTag(k), " ", b.label ? T(b.label) : ""), h("span", { class: "chip " + (used ? "good" : "warn") }, used ? T("已兑换") : T("未兑换"))),
+    h("span", { class: "note" },
+      b.value == null ? [editNum(b.points || 0, (x) => set({ points: x }), { label: T("开卡礼积分") }), T(" 分 ≈ "), "$" + fmt0(bonusValue(k, b)), " · "] : null,
+      T("价值 "), editNum(Math.round(bonusValue(k, b)), (x) => set({ value: x }), { prefix: "$", label: T("开卡礼价值") }),
+      b.note ? " · " + T(b.note) : ""),
+    h("div", { class: "actions" }, h("button", { class: "small" + (used ? " ghost" : " primary"), onclick: () => set({ status: used ? "open" : "used" }) }, used ? T("改回未兑换") : T("标记已兑换"))));
+}
 function openCount(ck) {
   return BENEFITS.filter((b) => b.card === ck && b.amt && !b.cert).filter((b) => {
     const u = USAGE[b.id + "_" + periodOf(b, NOW).key] || {};
@@ -1176,12 +1206,19 @@ function renderPerks() {
   const y = String(NOW.getFullYear());
   let captured = 0;
   for (const [k, u] of Object.entries(USAGE)) if (k.includes("_" + y) || k.includes("_cy" + y)) captured += u.used || 0;
-  const fees = Object.values(CARDS).reduce((s, c) => s + c.fee, 0);
+  const mine = ownedBy(WHO);
+  const fees = Object.entries(CARDS).filter(([k]) => mine.includes(k)).reduce((s, [, c]) => s + c.fee, 0);
+  const bon = Object.entries(CFG.bonuses || {}).filter(([k]) => mine.includes(k));
+  const bonusUsed = bon.filter(([, b]) => b.status === "used").reduce((s, [k, b]) => s + bonusValue(k, b), 0);
+  const bonusLeft = bon.filter(([, b]) => b.status !== "used").reduce((s, [k, b]) => s + bonusValue(k, b), 0);
+  const net = captured + bonusUsed - fees;
   v.append(h("div", { class: "figs" },
     h("div", { class: "panel fig" }, h("span", { class: "label" }, T`${y} 已用抵扣`), h("b", {}, "$" + fmt0(captured))),
+    h("div", { class: "panel fig" }, h("span", { class: "label" }, T("开卡礼已兑换")), h("b", {}, "$" + fmt0(bonusUsed))),
     h("div", { class: "panel fig" }, h("span", { class: "label" }, T("年费合计")), h("b", {}, "$" + fmt0(fees))),
-    h("div", { class: "panel fig" }, h("span", { class: "label" }, T("差额")), h("b", { style: `color:var(${captured >= fees ? "--good" : "--warn"})` }, (captured >= fees ? "+" : "−") + "$" + fmt0(Math.abs(captured - fees))))));
-  v.append(h("span", { class: "note" }, T("抵扣只算现金类，免房券价值不计入。导入账单时到账的抵扣会自动勾掉。")));
+    h("div", { class: "panel fig" }, h("span", { class: "label" }, T("净赚")), h("b", { style: `color:var(${net >= 0 ? "--good" : "--warn"})` }, (net >= 0 ? "+" : "−") + "$" + fmt0(Math.abs(net))))));
+  v.append(h("span", { class: "note" }, T`抵扣按现金算；开卡礼按积分估值或你填的金额算；周年免房券不计入。还有约 $${fmt0(bonusLeft)} 的开卡礼没兑换。`));
+  if (bon.length) v.append(h("section", {}, h("h2", {}, T("开卡礼")), h("div", { class: "panel rows" }, bon.map(([k, b]) => bonusRow(k, b)))));
 
   const order = ["hh", "ips", "ihg", "mar", "aa", "dis", "fr", "ua"].filter((k) => ownedBy(WHO).includes(k)).sort((a, b) => openCount(b) - openCount(a));
   for (const ck of order) {
